@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "id": "hotel-booking-demo",
+    "name": "Hotel booking (minimal slice)",
+    "version": 1,
+    "modelVersion": 1
+  },
+  "swimlanes": [
+    { "id": "lane-guest-ui", "name": "Guest", "band": "ui", "order": 0 },
+    { "id": "lane-booking-cv", "name": "Booking", "band": "commandView", "order": 0 },
+    { "id": "lane-booking-events", "name": "Booking", "band": "events", "order": 0 }
+  ],
+  "nodes": [
+    {
+      "type": "event",
+      "id": "evt-hotel-setup",
+      "name": "HotelConfigured",
+      "swimlaneId": "lane-booking-events",
+      "sliceId": "slice-setup",
+      "timelineIndex": 0,
+      "payload": [
+        { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
+        { "name": "oceanViewRoomCount", "type": "int", "optional": false, "source": { "kind": "user" } }
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-availability",
+      "name": "RoomAvailability",
+      "swimlaneId": "lane-booking-cv",
+      "sliceId": "slice-book",
+      "fields": [
+        { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "fromEvent", "eventId": "evt-hotel-setup", "field": "hotelId" } },
+        { "name": "availableDates", "type": "date[]", "optional": false, "source": { "kind": "derived", "note": "From inventory events" } }
+      ],
+      "fedBy": ["evt-hotel-setup", "evt-room-booked"]
+    },
+    {
+      "type": "screen",
+      "id": "scr-calendar",
+      "name": "Availability calendar",
+      "swimlaneId": "lane-guest-ui",
+      "sliceId": "slice-book",
+      "actor": "Guest",
+      "bindings": [
+        {
+          "uiField": "calendar",
+          "target": { "kind": "viewField", "viewId": "view-availability", "field": "availableDates" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-book-room",
+      "name": "BookRoom",
+      "swimlaneId": "lane-booking-cv",
+      "sliceId": "slice-book",
+      "input": [
+        { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
+        { "name": "roomType", "type": "string", "optional": false, "source": { "kind": "user" } },
+        { "name": "checkIn", "type": "date", "optional": false, "source": { "kind": "user" } },
+        { "name": "checkOut", "type": "date", "optional": false, "source": { "kind": "user" } }
+      ],
+      "produces": ["evt-room-booked"],
+      "rejections": [{ "code": "OVERBOOKED", "when": "No inventory for dates and room type" }]
+    },
+    {
+      "type": "event",
+      "id": "evt-room-booked",
+      "name": "RoomBooked",
+      "swimlaneId": "lane-booking-events",
+      "sliceId": "slice-book",
+      "timelineIndex": 1,
+      "payload": [
+        { "name": "bookingId", "type": "uuid", "optional": false, "source": { "kind": "generated" } },
+        { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "fromEvent", "eventId": "evt-hotel-setup", "field": "hotelId" } },
+        { "name": "roomType", "type": "string", "optional": false, "source": { "kind": "user" } },
+        { "name": "checkIn", "type": "date", "optional": false, "source": { "kind": "user" } },
+        { "name": "checkOut", "type": "date", "optional": false, "source": { "kind": "user" } }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-book-form",
+      "name": "Book room",
+      "swimlaneId": "lane-guest-ui",
+      "sliceId": "slice-book",
+      "actor": "Guest",
+      "bindings": [
+        {
+          "uiField": "submit",
+          "target": { "kind": "commandInput", "commandId": "cmd-book-room", "field": "roomType" }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "e1", "from": "scr-book-form", "to": "cmd-book-room", "rel": "issues" },
+    { "id": "e2", "from": "cmd-book-room", "to": "evt-room-booked", "rel": "produces" },
+    { "id": "e3a", "from": "evt-hotel-setup", "to": "view-availability", "rel": "updates" },
+    { "id": "e3", "from": "evt-room-booked", "to": "view-availability", "rel": "updates" },
+    { "id": "e4", "from": "view-availability", "to": "scr-calendar", "rel": "rendersOn" },
+    { "id": "e5", "from": "evt-hotel-setup", "to": "evt-room-booked", "rel": "ordersBefore" }
+  ]
+}

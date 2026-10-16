@@ -1,0 +1,432 @@
+{
+  "schemaVersion": 1,
+  "meta": {
+    "id": "apex-bee-core",
+    "name": "Apex Bee — core learner journey",
+    "version": 1,
+    "modelVersion": 1
+  },
+  "swimlanes": [
+    { "id": "ui-anon", "name": "Anonymous taster", "band": "ui", "order": 0 },
+    { "id": "ui-learner", "name": "Signed-in learner", "band": "ui", "order": 1 },
+    { "id": "ui-member", "name": "Group member", "band": "ui", "order": 2 },
+    { "id": "ui-host", "name": "Group host", "band": "ui", "order": 3 },
+    { "id": "cv-main", "name": "Domain", "band": "commandView", "order": 0 },
+    { "id": "ev-accounts", "name": "Accounts", "band": "events", "order": 0 },
+    { "id": "ev-billing", "name": "Billing", "band": "events", "order": 1 },
+    { "id": "ev-attempts", "name": "Attempts", "band": "events", "order": 2 },
+    { "id": "ev-study-groups", "name": "Study groups", "band": "events", "order": 3 }
+  ],
+  "nodes": [
+    {
+      "type": "screen",
+      "id": "scr-landing",
+      "name": "Landing",
+      "swimlaneId": "ui-anon",
+      "sliceId": "slice-taster",
+      "actor": "Anonymous",
+      "bindings": [
+        {
+          "uiField": "cta",
+          "target": { "kind": "commandInput", "commandId": "cmd-sign-in", "field": "provider" }
+        }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-me-taster",
+      "name": "Me (taster limits)",
+      "swimlaneId": "ui-anon",
+      "sliceId": "slice-taster",
+      "actor": "Anonymous",
+      "bindings": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-sign-in",
+      "name": "SignInWithGoogle",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-auth",
+      "input": [{ "name": "provider", "type": "string", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-device-registered"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-device-registered",
+      "name": "DeviceRegisteredV1",
+      "swimlaneId": "ev-accounts",
+      "sliceId": "slice-auth",
+      "timelineIndex": 0,
+      "payload": [
+        { "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "generated" } },
+        { "name": "deviceToken", "type": "string", "optional": false, "source": { "kind": "generated" } }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-me-home",
+      "name": "Me home",
+      "swimlaneId": "ui-learner",
+      "sliceId": "slice-trial",
+      "actor": "Learner",
+      "bindings": [
+        {
+          "uiField": "startTrial",
+          "target": { "kind": "commandInput", "commandId": "cmd-start-trial", "field": "userId" }
+        },
+        {
+          "uiField": "entitlement",
+          "target": { "kind": "viewField", "viewId": "view-entitlement", "field": "status" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-start-trial",
+      "name": "StartTrial",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-trial",
+      "input": [{ "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-trial-started"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-trial-started",
+      "name": "TrialStartedV1",
+      "swimlaneId": "ev-billing",
+      "sliceId": "slice-trial",
+      "timelineIndex": 1,
+      "payload": [
+        { "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
+        { "name": "expiresAt", "type": "datetime", "optional": false, "source": { "kind": "derived" } }
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-entitlement",
+      "name": "EntitlementSummary",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-billing",
+      "fields": [
+        { "name": "status", "type": "string", "optional": false, "source": { "kind": "derived" } },
+        { "name": "expiresAt", "type": "datetime", "optional": true, "source": { "kind": "derived" } }
+      ],
+      "fedBy": ["evt-trial-started", "evt-payment-confirmed", "evt-subscription-activated"]
+    },
+    {
+      "type": "screen",
+      "id": "scr-me-exam",
+      "name": "Me (exam runner)",
+      "swimlaneId": "ui-learner",
+      "sliceId": "slice-solo-exam",
+      "actor": "Learner",
+      "bindings": [
+        {
+          "uiField": "submit",
+          "target": { "kind": "commandInput", "commandId": "cmd-submit-exam", "field": "attempt" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-submit-exam",
+      "name": "SubmitExam",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-solo-exam",
+      "input": [{ "name": "attempt", "type": "json", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-exam-submitted"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-exam-submitted",
+      "name": "ExamSubmittedV1",
+      "swimlaneId": "ev-attempts",
+      "sliceId": "slice-solo-exam",
+      "timelineIndex": 2,
+      "payload": [
+        { "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
+        { "name": "scorePct", "type": "float", "optional": false, "source": { "kind": "derived" } }
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-attempt-history",
+      "name": "AttemptHistory",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-solo-exam",
+      "fields": [
+        { "name": "attempts", "type": "list", "optional": false, "source": { "kind": "derived" } }
+      ],
+      "fedBy": ["evt-exam-submitted", "evt-joint-exam-submitted"]
+    },
+    {
+      "type": "screen",
+      "id": "scr-me-review",
+      "name": "Exam review",
+      "swimlaneId": "ui-learner",
+      "sliceId": "slice-solo-exam",
+      "actor": "Learner",
+      "bindings": [
+        {
+          "uiField": "breakdown",
+          "target": { "kind": "viewField", "viewId": "view-attempt-history", "field": "attempts" }
+        }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-subscription",
+      "name": "Settings · subscription",
+      "swimlaneId": "ui-learner",
+      "sliceId": "slice-billing",
+      "actor": "Learner",
+      "bindings": [
+        {
+          "uiField": "pay",
+          "target": { "kind": "commandInput", "commandId": "cmd-initiate-payment", "field": "plan" }
+        },
+        {
+          "uiField": "status",
+          "target": { "kind": "viewField", "viewId": "view-entitlement", "field": "status" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-initiate-payment",
+      "name": "InitiatePayment",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-billing",
+      "input": [{ "name": "plan", "type": "string", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-payment-initiated"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-payment-initiated",
+      "name": "PaymentInitiatedV1",
+      "swimlaneId": "ev-billing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 3,
+      "payload": [
+        { "name": "reference", "type": "string", "optional": false, "source": { "kind": "generated" } }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-confirm-payment",
+      "name": "ConfirmPayment",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-billing",
+      "input": [{ "name": "reference", "type": "string", "optional": false, "source": { "kind": "external" } }],
+      "produces": ["evt-payment-confirmed"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-payment-confirmed",
+      "name": "PaymentConfirmedV1",
+      "swimlaneId": "ev-billing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 4,
+      "payload": [
+        { "name": "reference", "type": "string", "optional": false, "source": { "kind": "user" } },
+        { "name": "amountKobo", "type": "int", "optional": false, "source": { "kind": "derived" } }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-activate-subscription",
+      "name": "ActivateSubscription",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-billing",
+      "input": [{ "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "derived" } }],
+      "produces": ["evt-subscription-activated"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-subscription-activated",
+      "name": "SubscriptionActivatedV1",
+      "swimlaneId": "ev-billing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 5,
+      "payload": [
+        { "name": "userId", "type": "uuid", "optional": false, "source": { "kind": "user" } }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-group-host",
+      "name": "Study group (host)",
+      "swimlaneId": "ui-host",
+      "sliceId": "slice-joint-open",
+      "actor": "Host",
+      "bindings": [
+        {
+          "uiField": "openExam",
+          "target": { "kind": "commandInput", "commandId": "cmd-open-joint", "field": "config" }
+        },
+        {
+          "uiField": "session",
+          "target": { "kind": "viewField", "viewId": "view-joint-session", "field": "status" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-open-joint",
+      "name": "OpenJointExam",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-joint-open",
+      "input": [{ "name": "config", "type": "json", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-joint-opened"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-joint-opened",
+      "name": "JointExamOpenedV1",
+      "swimlaneId": "ev-study-groups",
+      "sliceId": "slice-joint-open",
+      "timelineIndex": 6,
+      "payload": [
+        { "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "generated" } },
+        { "name": "groupId", "type": "uuid", "optional": false, "source": { "kind": "user" } }
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-joint-session",
+      "name": "JointSessionStatus",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-joint",
+      "fields": [
+        { "name": "status", "type": "string", "optional": false, "source": { "kind": "derived" } },
+        { "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "derived" } }
+      ],
+      "fedBy": ["evt-joint-opened", "evt-joint-closed", "evt-joint-exam-submitted"]
+    },
+    {
+      "type": "screen",
+      "id": "scr-joint-take",
+      "name": "Joint exam take",
+      "swimlaneId": "ui-member",
+      "sliceId": "slice-joint-submit",
+      "actor": "Member",
+      "bindings": [
+        {
+          "uiField": "submit",
+          "target": { "kind": "commandInput", "commandId": "cmd-submit-joint", "field": "attempt" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-submit-joint",
+      "name": "SubmitExam",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-joint-submit",
+      "input": [
+        { "name": "attempt", "type": "json", "optional": false, "source": { "kind": "user" } },
+        { "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "derived" } }
+      ],
+      "produces": ["evt-joint-exam-submitted"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-joint-exam-submitted",
+      "name": "ExamSubmittedV1",
+      "swimlaneId": "ev-attempts",
+      "sliceId": "slice-joint-submit",
+      "timelineIndex": 7,
+      "payload": [
+        { "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
+        { "name": "scorePct", "type": "float", "optional": false, "source": { "kind": "derived" } }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-session-results",
+      "name": "Session results",
+      "swimlaneId": "ui-host",
+      "sliceId": "slice-joint-close",
+      "actor": "Host",
+      "bindings": [
+        {
+          "uiField": "close",
+          "target": { "kind": "commandInput", "commandId": "cmd-close-joint", "field": "sessionId" }
+        },
+        {
+          "uiField": "results",
+          "target": { "kind": "viewField", "viewId": "view-joint-session", "field": "status" }
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-close-joint",
+      "name": "CloseJointExam",
+      "swimlaneId": "cv-main",
+      "sliceId": "slice-joint-close",
+      "input": [{ "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "user" } }],
+      "produces": ["evt-joint-closed"],
+      "rejections": []
+    },
+    {
+      "type": "event",
+      "id": "evt-joint-closed",
+      "name": "JointExamClosedV1",
+      "swimlaneId": "ev-study-groups",
+      "sliceId": "slice-joint-close",
+      "timelineIndex": 8,
+      "payload": [
+        { "name": "sessionId", "type": "uuid", "optional": false, "source": { "kind": "user" } }
+      ]
+    }
+  ],
+  "edges": [
+    { "id": "e-landing-signin", "from": "scr-landing", "to": "cmd-sign-in", "rel": "issues" },
+    { "id": "e-signin-evt", "from": "cmd-sign-in", "to": "evt-device-registered", "rel": "produces" },
+    { "id": "e-dev-home", "from": "evt-device-registered", "to": "view-entitlement", "rel": "updates" },
+    { "id": "e-home-trial", "from": "scr-me-home", "to": "cmd-start-trial", "rel": "issues" },
+    { "id": "e-trial-evt", "from": "cmd-start-trial", "to": "evt-trial-started", "rel": "produces" },
+    { "id": "e-trial-ent", "from": "evt-trial-started", "to": "view-entitlement", "rel": "updates" },
+    { "id": "e-ent-home", "from": "view-entitlement", "to": "scr-me-home", "rel": "rendersOn" },
+    { "id": "e-ent-sub", "from": "view-entitlement", "to": "scr-subscription", "rel": "rendersOn" },
+    { "id": "e-exam-cmd", "from": "scr-me-exam", "to": "cmd-submit-exam", "rel": "issues" },
+    { "id": "e-exam-evt", "from": "cmd-submit-exam", "to": "evt-exam-submitted", "rel": "produces" },
+    { "id": "e-exam-hist", "from": "evt-exam-submitted", "to": "view-attempt-history", "rel": "updates" },
+    { "id": "e-hist-review", "from": "view-attempt-history", "to": "scr-me-review", "rel": "rendersOn" },
+    { "id": "e-sub-pay", "from": "scr-subscription", "to": "cmd-initiate-payment", "rel": "issues" },
+    { "id": "e-pay-init", "from": "cmd-initiate-payment", "to": "evt-payment-initiated", "rel": "produces" },
+    { "id": "e-confirm-evt", "from": "cmd-confirm-payment", "to": "evt-payment-confirmed", "rel": "produces" },
+    { "id": "e-conf-ent", "from": "evt-payment-confirmed", "to": "view-entitlement", "rel": "updates" },
+    { "id": "e-act-evt", "from": "cmd-activate-subscription", "to": "evt-subscription-activated", "rel": "produces" },
+    { "id": "e-act-ent", "from": "evt-subscription-activated", "to": "view-entitlement", "rel": "updates" },
+    { "id": "e-host-open", "from": "scr-group-host", "to": "cmd-open-joint", "rel": "issues" },
+    { "id": "e-open-evt", "from": "cmd-open-joint", "to": "evt-joint-opened", "rel": "produces" },
+    { "id": "e-open-sess", "from": "evt-joint-opened", "to": "view-joint-session", "rel": "updates" },
+    { "id": "e-sess-host", "from": "view-joint-session", "to": "scr-group-host", "rel": "rendersOn" },
+    { "id": "e-member-submit", "from": "scr-joint-take", "to": "cmd-submit-joint", "rel": "issues" },
+    { "id": "e-joint-evt", "from": "cmd-submit-joint", "to": "evt-joint-exam-submitted", "rel": "produces" },
+    { "id": "e-joint-hist", "from": "evt-joint-exam-submitted", "to": "view-attempt-history", "rel": "updates" },
+    { "id": "e-joint-sess", "from": "evt-joint-exam-submitted", "to": "view-joint-session", "rel": "updates" },
+    { "id": "e-results-close", "from": "scr-session-results", "to": "cmd-close-joint", "rel": "issues" },
+    { "id": "e-close-evt", "from": "cmd-close-joint", "to": "evt-joint-closed", "rel": "produces" },
+    { "id": "e-close-sess", "from": "evt-joint-closed", "to": "view-joint-session", "rel": "updates" },
+    { "id": "e-sess-results", "from": "view-joint-session", "to": "scr-session-results", "rel": "rendersOn" },
+    { "id": "e-t0-t1", "from": "evt-device-registered", "to": "evt-trial-started", "rel": "ordersBefore" },
+    { "id": "e-t1-t2", "from": "evt-trial-started", "to": "evt-exam-submitted", "rel": "ordersBefore" },
+    { "id": "e-t2-t3", "from": "evt-exam-submitted", "to": "evt-payment-initiated", "rel": "ordersBefore" },
+    { "id": "e-t3-t4", "from": "evt-payment-initiated", "to": "evt-payment-confirmed", "rel": "ordersBefore" },
+    { "id": "e-t4-t5", "from": "evt-payment-confirmed", "to": "evt-subscription-activated", "rel": "ordersBefore" },
+    { "id": "e-t5-t6", "from": "evt-subscription-activated", "to": "evt-joint-opened", "rel": "ordersBefore" },
+    { "id": "e-t6-t7", "from": "evt-joint-opened", "to": "evt-joint-exam-submitted", "rel": "ordersBefore" },
+    { "id": "e-t7-t8", "from": "evt-joint-exam-submitted", "to": "evt-joint-closed", "rel": "ordersBefore" }
+  ]
+}

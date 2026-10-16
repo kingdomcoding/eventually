@@ -1,0 +1,438 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background: #0f1419;
+  color: #e7ecf3;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #243044;
+  background: #121a24;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-header .meta {
+  font-size: 0.8rem;
+  color: #8fa3bc;
+}
+
+.app-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.view-mode-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: #1a2433;
+  border: 1px solid #2a3a50;
+}
+
+.view-mode-toggle button {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.35rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #8fa3bc;
+  background: transparent;
+}
+
+.view-mode-toggle button:hover {
+  color: #c5d4e8;
+}
+
+.view-mode-toggle button.is-active {
+  color: #0f1419;
+  background: #f5c542;
+}
+
+.view-mode-hint {
+  font-size: 0.68rem;
+  color: #6b829c;
+}
+
+.legend {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.canvas-wrap {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lane-gutter-host {
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.react-flow-host {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lane-gutter {
+  --gutter-opacity-active: 1;
+  --gutter-opacity-present: 0.48;
+  --gutter-opacity-idle: 0.4;
+  --lane-gutter-label-size: 13px;
+  --band-ui-accent: #6b829c;
+  --band-commandView-accent: #4a8fd4;
+  --band-events-accent: #c9a020;
+  --band-integration-accent: #8b7fd4;
+
+  position: relative;
+  height: 100%;
+  pointer-events: none;
+  border-top: 1px solid #243044;
+  border-right: 2px solid #2a3a50;
+  background: #0f1419;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.lane-gutter-dividers {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lane-gutter-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid #1e2a3a;
+}
+
+.lane-gutter-divider--band {
+  border-top-color: #243044;
+  opacity: 0.95;
+}
+
+.lane-gutter-divider--row {
+  opacity: 0.55;
+}
+
+.lane-gutter-band-gap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 10px 0 12px;
+  box-sizing: border-box;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.lane-gutter-band-gap__label {
+  font-size: clamp(10px, calc(var(--lane-gutter-label-size) * 0.92), 13px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8fa3bc;
+  line-height: 1.2;
+}
+
+.lane-gutter-rows {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.lane-gutter-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 10px 0 9px;
+  border-left: 3px solid transparent;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.lane-gutter-row.lane-gutter-band--ui {
+  border-left-color: color-mix(in srgb, var(--band-ui-accent) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band-ui-accent) 7%, transparent), transparent 72%);
+}
+
+.lane-gutter-row.lane-gutter-band--commandView {
+  border-left-color: color-mix(in srgb, var(--band-commandView-accent) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band-commandView-accent) 7%, transparent), transparent 72%);
+}
+
+.lane-gutter-row.lane-gutter-band--events {
+  border-left-color: color-mix(in srgb, var(--band-events-accent) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band-events-accent) 7%, transparent), transparent 72%);
+}
+
+.lane-gutter-row.lane-gutter-band--integration {
+  border-left-color: color-mix(in srgb, var(--band-integration-accent) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band-integration-accent) 7%, transparent), transparent 72%);
+}
+
+.lane-gutter-band-chip {
+  font-size: clamp(9px, calc(var(--lane-gutter-label-size) * 0.85), 11px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8fa3bc;
+  line-height: 1.15;
+  transition: opacity 0.2s ease;
+}
+
+.lane-gutter-emphasis--active {
+  opacity: var(--gutter-opacity-active);
+}
+
+.lane-gutter-emphasis--present {
+  opacity: var(--gutter-opacity-present);
+}
+
+.lane-gutter-emphasis--idle {
+  opacity: var(--gutter-opacity-idle);
+}
+
+.lane-gutter-label {
+  font-size: var(--lane-gutter-label-size);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #8fa3bc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.lane-gutter-label--named {
+  white-space: normal;
+}
+
+.react-flow__node-sticky,
+.react-flow__node-timelineMarker {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.sticky-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.sticky-focus-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sticky-focus-ring__rect {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-dasharray: 7 5;
+  animation: sticky-focus-ring-march 0.85s linear infinite;
+}
+
+.sticky-wrap--focus-anchor.event .sticky-focus-ring__rect {
+  stroke: #0f1419;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.85));
+}
+
+.sticky-wrap--focus-anchor.command .sticky-focus-ring__rect {
+  stroke: #9fd0ff;
+}
+
+.sticky-wrap--focus-anchor.view .sticky-focus-ring__rect {
+  stroke: #b8f0b8;
+}
+
+.sticky-wrap--focus-anchor.screen .sticky-focus-ring__rect {
+  stroke: #3d5a80;
+}
+
+@keyframes sticky-focus-ring-march {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky-focus-ring__rect {
+    animation: none;
+  }
+}
+
+.sticky {
+  position: relative;
+  z-index: 1;
+  min-width: 148px;
+  max-width: 210px;
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.sticky .kind {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  margin-bottom: 0.25rem;
+}
+
+.sticky .name {
+  font-weight: 600;
+}
+
+.sticky.event {
+  background: linear-gradient(165deg, #f8d04d, #e8b830);
+  color: #1a1400;
+}
+
+.sticky.sticky--hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.sticky.sticky--context {
+  opacity: 0.28;
+  filter: saturate(0.55);
+  transition:
+    opacity 0.22s ease,
+    filter 0.22s ease;
+  pointer-events: auto;
+}
+
+.sticky.sticky--preview {
+  filter: saturate(0.72);
+  transition:
+    opacity 0.22s ease,
+    filter 0.22s ease;
+}
+
+.sticky.sticky--preview-idle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sticky.sticky--preview-active {
+  opacity: 0.52;
+  pointer-events: auto;
+}
+
+.sticky.sticky--preview-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.react-flow__edge.preview-edge .react-flow__edge-path {
+  transition: opacity 0.22s ease;
+}
+
+.sticky.command {
+  background: linear-gradient(165deg, #5ba3e8, #3d7fc4);
+  color: #041018;
+}
+
+.sticky.view {
+  background: linear-gradient(165deg, #6fd06f, #4aab4a);
+  color: #041004;
+}
+
+.sticky.screen {
+  background: linear-gradient(165deg, #f4f6fa, #dce3ed);
+  color: #1a2332;
+  border-style: dashed;
+  border-color: #8fa3bc;
+}
+
+.react-flow__handle {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  background: #6b829c;
+  border: 1px solid #0f1419;
+  pointer-events: none;
+}
+
+.react-flow__node.nopan {
+  cursor: default;
+}
+
+.react-flow__edge-path {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+}
