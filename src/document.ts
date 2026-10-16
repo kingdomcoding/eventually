@@ -2,7 +2,7 @@ import { z } from "zod";
 import { BlueprintEdgeSchema } from "./edges.js";
 import { BlueprintNodeSchema } from "./nodes.js";
 
-/** Event Modeling canvas bands — each can have multiple swimlanes (rows). */
+/** Canvas bands; ui/commandView may have multiple swimlanes, events uses one timeline row. */
 export const SwimlaneBandSchema = z.enum(["ui", "commandView", "events", "integration"]);
 
 export type SwimlaneBand = z.infer<typeof SwimlaneBandSchema>;

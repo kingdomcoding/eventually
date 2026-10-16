@@ -12,10 +12,7 @@
     { "id": "ui-member", "name": "Group member", "band": "ui", "order": 2 },
     { "id": "ui-host", "name": "Group host", "band": "ui", "order": 3 },
     { "id": "cv-main", "name": "Domain", "band": "commandView", "order": 0 },
-    { "id": "ev-accounts", "name": "Accounts", "band": "events", "order": 0 },
-    { "id": "ev-billing", "name": "Billing", "band": "events", "order": 1 },
-    { "id": "ev-attempts", "name": "Attempts", "band": "events", "order": 2 },
-    { "id": "ev-study-groups", "name": "Study groups", "band": "events", "order": 3 }
+    { "id": "ev-timeline", "name": "Timeline", "band": "events", "order": 0 }
   ],
   "nodes": [
     {
@@ -55,7 +52,7 @@
       "type": "event",
       "id": "evt-device-registered",
       "name": "DeviceRegisteredV1",
-      "swimlaneId": "ev-accounts",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-auth",
       "timelineIndex": 0,
       "payload": [
@@ -95,7 +92,7 @@
       "type": "event",
       "id": "evt-trial-started",
       "name": "TrialStartedV1",
-      "swimlaneId": "ev-billing",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-trial",
       "timelineIndex": 1,
       "payload": [
@@ -143,7 +140,7 @@
       "type": "event",
       "id": "evt-exam-submitted",
       "name": "ExamSubmittedV1",
-      "swimlaneId": "ev-attempts",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-solo-exam",
       "timelineIndex": 2,
       "payload": [
@@ -208,7 +205,7 @@
       "type": "event",
       "id": "evt-payment-initiated",
       "name": "PaymentInitiatedV1",
-      "swimlaneId": "ev-billing",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-billing",
       "timelineIndex": 3,
       "payload": [
@@ -229,7 +226,7 @@
       "type": "event",
       "id": "evt-payment-confirmed",
       "name": "PaymentConfirmedV1",
-      "swimlaneId": "ev-billing",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-billing",
       "timelineIndex": 4,
       "payload": [
@@ -251,7 +248,7 @@
       "type": "event",
       "id": "evt-subscription-activated",
       "name": "SubscriptionActivatedV1",
-      "swimlaneId": "ev-billing",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-billing",
       "timelineIndex": 5,
       "payload": [
@@ -290,7 +287,7 @@
       "type": "event",
       "id": "evt-joint-opened",
       "name": "JointExamOpenedV1",
-      "swimlaneId": "ev-study-groups",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-joint-open",
       "timelineIndex": 6,
       "payload": [
@@ -341,7 +338,7 @@
       "type": "event",
       "id": "evt-joint-exam-submitted",
       "name": "ExamSubmittedV1",
-      "swimlaneId": "ev-attempts",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-joint-submit",
       "timelineIndex": 7,
       "payload": [
@@ -381,7 +378,7 @@
       "type": "event",
       "id": "evt-joint-closed",
       "name": "JointExamClosedV1",
-      "swimlaneId": "ev-study-groups",
+      "swimlaneId": "ev-timeline",
       "sliceId": "slice-joint-close",
       "timelineIndex": 8,
       "payload": [

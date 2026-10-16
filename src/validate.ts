@@ -21,6 +21,14 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
 
   const laneById = new Map(doc.swimlanes.map((s) => [s.id, s]));
 
+  const eventSwimlanes = doc.swimlanes.filter((s) => s.band === "events");
+  if (eventSwimlanes.length > 1) {
+    issues.push({
+      code: "multiple_events_swimlanes",
+      message: `Expected at most one events swimlane, found ${eventSwimlanes.length}`,
+    });
+  }
+
   for (const n of doc.nodes) {
     if (!swimlaneIds.has(n.swimlaneId)) {
       issues.push({
@@ -31,6 +39,13 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
       continue;
     }
     const lane = laneById.get(n.swimlaneId)!;
+    if (n.type === "event" && eventSwimlanes.length === 1 && n.swimlaneId !== eventSwimlanes[0]!.id) {
+      issues.push({
+        code: "event_swimlane_not_timeline",
+        message: `Event "${n.name}" must use the events swimlane "${eventSwimlanes[0]!.id}"`,
+        nodeId: n.id,
+      });
+    }
     const expected = NODE_BAND[n.type];
     if (expected && lane.band !== expected) {
       issues.push({

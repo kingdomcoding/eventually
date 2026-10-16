@@ -7,3 +7,5 @@ Stickies are placed at `yForLaneRow(row.y)` so node centers align with gutter ro
 Band titles (**Screens**, **Commands · views**, **Events**) render in inter-band gaps when the gap is tall enough; otherwise a band chip on the first row of that band. Horizontal dividers are gutter-only.
 
 Emphasis (active / present / idle) is opacity; band kind uses a left accent bar and subtle fill.
+
+The **events** band uses a single swimlane row (timeline); **ui** lanes remain per actor/role.

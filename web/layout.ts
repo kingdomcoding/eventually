@@ -191,8 +191,9 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
     return band === "ui" ? yUi : yEvt;
   }
 
-  function eventRowY(swimlaneId: string): number {
-    return yForLaneRow(rowY(swimlaneId, "events"));
+  /** All events share the single events-band row (timeline). */
+  function eventRowY(_swimlaneId: string): number {
+    return yForLaneRow(yEvt);
   }
 
   const yMidPlaced = yForLaneRow(yMid);
