@@ -2,7 +2,7 @@
 
 ## Persistence (`localStorage` key `event-model-blueprint.session.v1`)
 
-- Board: show-all, open event ids, open order, **focus anchor id** (any sticky type)
+- Board: show-all, open event ids, open order, **focus anchor id** (any sticky type), **workflow from/to event ids**
 - Legacy snapshots may store `focusEventId`; loaded as `focusAnchorId`
 - Viewport: pan x/y, zoom
 - Not persisted: hover preview
@@ -20,6 +20,7 @@
 | Transition | Intent |
 |------------|--------|
 | Load + saved viewport | Restore viewport (no auto-fit) |
+| Load + workflow from & to set | Frame workflow path (overrides saved viewport) |
 | Load + no viewport + focus anchor | Frame focus closure |
 | Load + no viewport | Frame story timeline (events) |
 | Open / refocus event | Frame focus-fit closure |

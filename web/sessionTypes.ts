@@ -9,6 +9,8 @@ export type SessionBoard = {
   openEventIds: string[];
   openOrder: string[];
   focusAnchorId: string | null;
+  workflowFromEventId: string | null;
+  workflowToEventId: string | null;
 };
 
 export type SessionSnapshot = {

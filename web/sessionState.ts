@@ -13,7 +13,8 @@ export type CameraIntent =
   | { type: "FrameStoryTimeline" }
   | { type: "FrameFocusClosure"; anchorId: string }
   | { type: "FrameVisibleOpen" }
-  | { type: "FrameFullBoard" };
+  | { type: "FrameFullBoard" }
+  | { type: "FrameWorkflowPath"; fromEventId: string; toEventId: string };
 
 export type SessionAction =
   | { type: "HYDRATE"; snapshot: SessionSnapshot | null }
@@ -22,13 +23,18 @@ export type SessionAction =
   | { type: "RESET_STORY" }
   | { type: "SHOW_ALL_ON" }
   | { type: "TOGGLE_STORY_OR_SHOW_ALL" }
-  | { type: "VIEWPORT"; viewport: ViewportState };
+  | { type: "VIEWPORT"; viewport: ViewportState }
+  | { type: "WORKFLOW_SET_FROM"; eventId: string | null }
+  | { type: "WORKFLOW_SET_TO"; eventId: string | null }
+  | { type: "WORKFLOW_CLEAR" };
 
 const emptyBoard = (): SessionSnapshot["board"] => ({
   showAll: false,
   openEventIds: [],
   openOrder: [],
   focusAnchorId: null,
+  workflowFromEventId: null,
+  workflowToEventId: null,
 });
 
 export function defaultSessionState(): SessionState {
@@ -44,6 +50,8 @@ function boardFromSnapshot(snapshot: SessionSnapshot): SessionSnapshot["board"] 
     openEventIds: [...raw.openEventIds],
     openOrder: [...raw.openOrder],
     focusAnchorId,
+    workflowFromEventId: raw.workflowFromEventId ?? null,
+    workflowToEventId: raw.workflowToEventId ?? null,
   };
 }
 
@@ -55,6 +63,7 @@ function nextBoardOnEventClick(board: SessionSnapshot["board"], eventId: string)
     open.add(eventId);
     if (!order.includes(eventId)) order.push(eventId);
     return {
+      ...board,
       showAll: false,
       openEventIds: [...open],
       openOrder: order,
@@ -68,6 +77,7 @@ function nextBoardOnEventClick(board: SessionSnapshot["board"], eventId: string)
     const stillOpen = nextOrder.filter((id) => open.has(id));
     const focus = stillOpen.length > 0 ? stillOpen[stillOpen.length - 1]! : null;
     return {
+      ...board,
       showAll: false,
       openEventIds: [...open],
       openOrder: nextOrder,
@@ -138,7 +148,21 @@ function cameraForEventClick(
   return { type: "Preserve" };
 }
 
+function cameraForWorkflowEndpoints(board: SessionSnapshot["board"]): CameraIntent {
+  if (board.workflowFromEventId && board.workflowToEventId) {
+    return {
+      type: "FrameWorkflowPath",
+      fromEventId: board.workflowFromEventId,
+      toEventId: board.workflowToEventId,
+    };
+  }
+  return { type: "Preserve" };
+}
+
 function cameraOnHydrate(board: SessionSnapshot["board"], hasViewport: boolean): CameraIntent {
+  if (board.workflowFromEventId && board.workflowToEventId) {
+    return cameraForWorkflowEndpoints(board);
+  }
   if (hasViewport) return { type: "Preserve" };
   if (board.focusAnchorId) {
     return { type: "FrameFocusClosure", anchorId: board.focusAnchorId };
@@ -213,6 +237,32 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
         state: { ...state, viewport: action.viewport },
         camera: { type: "Preserve" },
       };
+    case "WORKFLOW_SET_FROM": {
+      const board = { ...state.board, workflowFromEventId: action.eventId };
+      return {
+        state: { ...state, board },
+        camera: cameraForWorkflowEndpoints(board),
+      };
+    }
+    case "WORKFLOW_SET_TO": {
+      const board = { ...state.board, workflowToEventId: action.eventId };
+      return {
+        state: { ...state, board },
+        camera: cameraForWorkflowEndpoints(board),
+      };
+    }
+    case "WORKFLOW_CLEAR":
+      return {
+        state: {
+          ...state,
+          board: {
+            ...state.board,
+            workflowFromEventId: null,
+            workflowToEventId: null,
+          },
+        },
+        camera: { type: "FrameStoryTimeline" },
+      };
     default:
       return { state, camera: { type: "Preserve" } };
   }
@@ -225,6 +275,7 @@ export function sessionToFocusState(session: SessionState, hoverExpandedId: stri
     focusAnchorId: board.focusAnchorId,
     openEventIds: new Set(board.openEventIds),
     hoverExpandedId,
+    workflowPath: { status: "inactive" as const },
   };
 }
 
@@ -234,5 +285,7 @@ export function boardToPersistable(board: SessionSnapshot["board"]): SessionSnap
     openEventIds: [...board.openEventIds],
     openOrder: [...board.openOrder],
     focusAnchorId: board.focusAnchorId,
+    workflowFromEventId: board.workflowFromEventId,
+    workflowToEventId: board.workflowToEventId,
   };
 }

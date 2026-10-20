@@ -7,6 +7,7 @@ export type StickyData = {
   name: string;
   subtitle?: string;
   isFocusAnchor?: boolean;
+  onWorkflowRoute?: boolean;
   displayTier?: DisplayTier;
   previewPhase?: string;
 };
@@ -44,6 +45,7 @@ function StickyNodeComponent({ data }: NodeProps) {
     .join(" ");
 
   const classNames = ["sticky", d.kind];
+  if (d.onWorkflowRoute && tier !== "hidden") classNames.push("sticky--workflow-route");
   if (tier === "hidden") classNames.push("sticky--hidden");
   if (tier === "context") classNames.push("sticky--context");
   if (tier === "preview") classNames.push("sticky--preview", `sticky--preview-${d.previewPhase ?? "idle"}`);

@@ -25,6 +25,7 @@ import { useStickyClickDispatch } from "./useStickyClick";
 import { sessionToFocusState } from "./sessionState";
 import {
   CONTEXT_OPACITY,
+  WORKFLOW_OFF_PATH_OPACITY,
   edgeDisplayTier,
   edgeShouldAnimate,
   focusHold,
@@ -33,6 +34,8 @@ import {
   type DisplayTier,
   type PreviewPhase,
 } from "./viewMode";
+import { WorkflowRouteBar } from "./WorkflowRouteBar";
+import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
@@ -41,11 +44,18 @@ const nodeTypes = {
   sticky: StickyNode,
 };
 
-function tierStrokeOpacity(tier: DisplayTier, previewPhase: PreviewPhase, base: number): number {
-  if (tier === "context") return CONTEXT_OPACITY * base;
+function tierStrokeOpacity(
+  tier: DisplayTier,
+  previewPhase: PreviewPhase,
+  base: number,
+  workflowDim: boolean,
+): number {
+  if (tier === "context") return (workflowDim ? WORKFLOW_OFF_PATH_OPACITY : CONTEXT_OPACITY) * base;
   if (tier === "preview") return Math.min(0.48, previewOpacity(previewPhase) * base);
   return base;
 }
+
+const WORKFLOW_ROUTE_STROKE = "#5b9bf5";
 
 function BoardControls({
   showAll,
@@ -117,7 +127,14 @@ export function BlueprintCanvas() {
       focusStateRef.current ??
       sessionToFocusState(
         {
-          board: { showAll: false, openEventIds: [], openOrder: [], focusAnchorId: null },
+          board: {
+            showAll: false,
+            openEventIds: [],
+            openOrder: [],
+            focusAnchorId: null,
+            workflowFromEventId: null,
+            workflowToEventId: null,
+          },
           viewport: null,
           hydrated: true,
         },
@@ -128,11 +145,19 @@ export function BlueprintCanvas() {
 
   const { session, dispatch, setViewport } = useBlueprintSession(handleCameraIntent);
 
-  const { showAll, openEventIds, focusAnchorId } = {
+  const { showAll, openEventIds, focusAnchorId, workflowFromEventId, workflowToEventId } = {
     showAll: session.board.showAll,
     openEventIds: new Set(session.board.openEventIds),
     focusAnchorId: session.board.focusAnchorId,
+    workflowFromEventId: session.board.workflowFromEventId,
+    workflowToEventId: session.board.workflowToEventId,
   };
+
+  const workflowEventOptions = useMemo(() => listWorkflowEventOptions(doc), [doc]);
+  const workflowPath = useMemo(
+    () => computeWorkflowPath(doc, workflowFromEventId, workflowToEventId),
+    [doc, workflowFromEventId, workflowToEventId],
+  );
 
   /** Disable hover only during story + focus-hold (no pinned slices). */
   const hoverPreviewEnabled = !(focusAnchorId !== null && openEventIds.size === 0);
@@ -159,8 +184,11 @@ export function BlueprintCanvas() {
   previewPhaseRef.current = previewPhase;
 
   const focusState = useMemo(
-    () => sessionToFocusState(session, hoverExpandedId),
-    [session, hoverExpandedId],
+    () => ({
+      ...sessionToFocusState(session, hoverExpandedId),
+      workflowPath,
+    }),
+    [session, hoverExpandedId, workflowPath],
   );
   focusStateRef.current = focusState;
 
@@ -168,11 +196,20 @@ export function BlueprintCanvas() {
 
   useEffect(() => {
     if (!session.hydrated || viewportRestored.current) return;
+    viewportRestored.current = true;
+    if (session.board.workflowFromEventId && session.board.workflowToEventId) {
+      return;
+    }
     if (session.viewport) {
-      viewportRestored.current = true;
       restoreViewport(session.viewport);
     }
-  }, [session.hydrated, session.viewport, restoreViewport]);
+  }, [
+    session.hydrated,
+    session.viewport,
+    session.board.workflowFromEventId,
+    session.board.workflowToEventId,
+    restoreViewport,
+  ]);
 
   useEffect(() => {
     const el = gutterRef.current;
@@ -245,21 +282,24 @@ export function BlueprintCanvas() {
         if (n.type === "command" && n.rejections.length)
           subtitle = `${n.rejections.length} rejection(s)`;
         const isFocusAnchor = focusAnchorId !== null && n.id === focusAnchorId;
+        const onWorkflowRoute =
+          workflowPath.status === "valid" && workflowPath.eventIds.has(n.id) && n.type === "event";
         return {
           id: n.id,
           type: "sticky",
           position: p,
-          zIndex: isFocusAnchor ? 3 : 2,
+          zIndex: isFocusAnchor ? 5 : onWorkflowRoute ? 4 : 2,
           className: "nopan",
           data: {
             kind: n.type,
             name: n.name,
             subtitle,
             isFocusAnchor,
+            onWorkflowRoute,
           } satisfies StickyData,
         };
       }),
-    [doc.nodes, layout.positions, focusAnchorId],
+    [doc.nodes, layout.positions, focusAnchorId, workflowPath],
   );
 
   const allEdges = useMemo(
@@ -282,30 +322,47 @@ export function BlueprintCanvas() {
   }, [baseStickyNodes, doc, focusState, previewPhase]);
 
   const edges = useMemo(() => {
+    const workflowActive = workflowPath.status === "valid";
     return allEdges.map((e) => {
       const tier = edgeDisplayTier(doc, e.id, focusState, previewPhase);
       const baseOp = typeof e.style?.opacity === "number" ? e.style.opacity : 0.95;
+      const isRouteEdge = workflowActive && workflowPath.edgeIds.has(e.id);
 
       if (tier === "hidden") {
         return { ...e, hidden: true };
       }
 
-      const strokeOp = tierStrokeOpacity(tier, previewPhase, baseOp);
+      const workflowDim = workflowActive && !isRouteEdge;
+      const strokeOp = tierStrokeOpacity(tier, previewPhase, baseOp, workflowDim);
       const animate = edgeShouldAnimate(doc, e.id, focusState, previewPhase);
+
+      const classNames = [
+        tier === "preview" || tier === "context" ? "preview-edge" : "",
+        isRouteEdge ? "workflow-route-edge" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
 
       return {
         ...e,
         hidden: false,
         animated: animate,
-        className: tier === "preview" || tier === "context" ? "preview-edge" : undefined,
+        zIndex: isRouteEdge ? 8 : e.zIndex,
+        className: classNames || undefined,
+        label: isRouteEdge ? "then" : e.label,
+        labelStyle: isRouteEdge
+          ? { fill: "#dbeafe", fontSize: 11, fontWeight: 600 }
+          : e.labelStyle,
         style: {
           ...e.style,
-          opacity: strokeOp,
-          transition: "opacity 0.22s ease",
+          stroke: isRouteEdge ? WORKFLOW_ROUTE_STROKE : e.style?.stroke,
+          strokeWidth: isRouteEdge ? 3 : e.style?.strokeWidth,
+          opacity: isRouteEdge ? 1 : strokeOp,
+          transition: "opacity 0.22s ease, stroke 0.22s ease",
         },
       };
     });
-  }, [allEdges, doc, focusState, previewPhase]);
+  }, [allEdges, doc, focusState, previewPhase, workflowPath]);
 
   const onEventClickToggle = useCallback(
     (eventId: string) => {
@@ -332,7 +389,9 @@ export function BlueprintCanvas() {
   const showLegend =
     showAll || openEventIds.size > 0 || hoverExpandedId !== null || focusAnchorId !== null;
 
-  const metaLine = showAll
+  const metaLine = workflowPath.status === "valid"
+    ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
+    : showAll
     ? "Full board — all nodes and edges"
     : focusAnchorId
       ? holdFocus
@@ -340,7 +399,7 @@ export function BlueprintCanvas() {
         : `Focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
       : openEventIds.size > 0
         ? `${openEventIds.size} open slice(s) · click an event to focus`
-        : "Story — event timeline · hover for preview · click an event to open its slice";
+        : "Story — streams (one row per EventStore pattern) · hover for preview · click an event for detail";
 
   return (
     <>
@@ -375,6 +434,15 @@ export function BlueprintCanvas() {
           </div>
         ) : null}
       </header>
+      <WorkflowRouteBar
+        options={workflowEventOptions}
+        fromEventId={workflowFromEventId}
+        toEventId={workflowToEventId}
+        path={workflowPath}
+        onSetFrom={(eventId) => dispatch({ type: "WORKFLOW_SET_FROM", eventId })}
+        onSetTo={(eventId) => dispatch({ type: "WORKFLOW_SET_TO", eventId })}
+        onClear={() => dispatch({ type: "WORKFLOW_CLEAR" })}
+      />
       <div className="canvas-wrap" ref={canvasRef} onDoubleClick={onCanvasDoubleClick}>
         <div ref={gutterRef} className="lane-gutter-host">
           <SwimlaneGutter
@@ -382,6 +450,7 @@ export function BlueprintCanvas() {
             viewport={flowViewport}
             gutterHeight={gutterHeight}
             emphasis={gutterEmphasis}
+            showAll={showAll}
           />
         </div>
         <div className="react-flow-host">

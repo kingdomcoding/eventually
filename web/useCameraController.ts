@@ -7,6 +7,7 @@ import {
   eventTimelineNodeIds,
   focusFitClosure,
 } from "./graphIndex.js";
+import { computeWorkflowPath } from "./workflowPath.js";
 import type { LayoutResult } from "./layout.js";
 import type { CameraIntent } from "./sessionState.js";
 import type { FocusState, PreviewPhase } from "./viewMode.js";
@@ -24,6 +25,8 @@ function fitPaddingForIntent(intent: CameraIntent): number {
       return 0.18;
     case "FrameFullBoard":
       return 0.18;
+    case "FrameWorkflowPath":
+      return 0.14;
     default:
       return 0.22;
   }
@@ -64,6 +67,11 @@ export function useCameraController(options: {
           return visibleDiagramNodeIds(doc, getFocusState(), getPreviewPhase());
         case "FrameFullBoard":
           return allStickyNodeIds(doc);
+        case "FrameWorkflowPath": {
+          const path = computeWorkflowPath(doc, intent.fromEventId, intent.toEventId);
+          if (path.status !== "valid") return eventTimelineNodeIds(doc);
+          return [...path.eventIds];
+        }
         default:
           return [];
       }

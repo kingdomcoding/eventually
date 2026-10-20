@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build:web": "vite build",
-    "test:web": "tsx --test web/graphIndex.test.ts web/gutterLayout.test.ts",
+    "test:web": "tsx --test web/graphIndex.test.ts web/gutterLayout.test.ts web/workflowPath.test.ts web/workflowVisibility.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
