@@ -220,7 +220,7 @@ body,
 }
 
 .react-flow__edge.workflow-route-edge .react-flow__edge-path {
-  filter: drop-shadow(0 0 4px rgba(91, 155, 245, 0.45));
+  filter: none;
 }
 
 .legend {
@@ -606,5 +606,5 @@ body,
 }
 
 .react-flow__edge-path {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+  filter: none;
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BlueprintEdgeSchema } from "./edges.js";
 import { BlueprintNodeSchema } from "./nodes.js";
+import { StreamShapeSchema } from "./streamShape.js";
 
 /** Canvas bands; ui/commandView may have multiple swimlanes; events band holds one row per stream. */
 export const SwimlaneBandSchema = z.enum(["ui", "commandView", "events", "integration"]);
@@ -15,6 +16,8 @@ export const SwimlaneSchema = z.object({
   order: z.number().int().nonnegative(),
   /** EventStore stream id pattern (e.g. subscription-{userId}). Shown in gutter. */
   streamPattern: z.string().min(1).optional(),
+  /** Legal append sequences (partial order), not a single spine. */
+  streamShape: StreamShapeSchema.optional(),
 });
 
 export const BlueprintMetaSchema = z.object({

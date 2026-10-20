@@ -7,6 +7,7 @@ export const EdgeRelationSchema = z.enum([
   "updates",
   "rendersOn",
   "ordersBefore",
+  "loopsBack",
   "translatesTo",
 ]);
 

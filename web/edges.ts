@@ -8,17 +8,18 @@ const REL_STROKE: Record<string, string> = {
   updates: "#6fd06f",
   rendersOn: "#9eb4cc",
   ordersBefore: "#f5c542",
+  loopsBack: "#b88cff",
   translatesTo: "#ff9f6b",
 };
 
 function handlesFor(rel: string): { sourceHandle: string; targetHandle: string } {
+  if (rel === "loopsBack") return { sourceHandle: "t-out", targetHandle: "b-in" };
   if (rel === "ordersBefore") return { sourceHandle: "r-out", targetHandle: "l-in" };
   if (rel === "updates") return { sourceHandle: "t-out", targetHandle: "b-in" };
   if (rel === "rendersOn") return { sourceHandle: "t-out", targetHandle: "b-in" };
   return { sourceHandle: "b-out", targetHandle: "t-in" };
 }
 
-/** Long horizontal separation — de-emphasize (e.g. earlier event → later view). */
 function isLongRangeUpdate(
   rel: string,
   from: string,
@@ -42,24 +43,22 @@ export function buildEdges(
   return doc.edges.map((e) => {
     const longRange = isLongRangeUpdate(e.rel, e.from, e.to, positions);
     const isTimeline = e.rel === "ordersBefore";
-    const isPrimary = PRIMARY_RELS.has(e.rel) && !longRange && !isTimeline;
+    const isLoop = e.rel === "loopsBack";
+    const isPrimary = PRIMARY_RELS.has(e.rel) && !longRange && !isTimeline && !isLoop;
 
     return {
       id: e.id,
       source: e.from,
       target: e.to,
-      type: "default",
-      zIndex: isPrimary ? 6 : 2,
+      type: isLoop ? "smoothstep" : "default",
+      zIndex: isPrimary ? 6 : isLoop ? 3 : 2,
       ...handlesFor(e.rel),
       animated: false,
-      label: isTimeline ? "then" : undefined,
-      labelStyle: { fill: "#f5c542", fontSize: 11 },
-      labelBgStyle: { fill: "#121a24", fillOpacity: 0.9 },
       style: {
         stroke: REL_STROKE[e.rel] ?? "#5a6a7a",
         strokeWidth: isPrimary ? 2.5 : 1.5,
-        strokeDasharray: STROKE_DASH,
-        opacity: isTimeline || longRange ? 0.5 : 0.95,
+        strokeDasharray: isLoop ? "4 4" : STROKE_DASH,
+        opacity: isTimeline || isLoop || longRange ? 0.65 : 0.95,
       },
     };
   });

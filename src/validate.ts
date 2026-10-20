@@ -76,13 +76,65 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
         });
       }
     }
-    if (e.rel === "ordersBefore" && from?.type === "event" && to?.type === "event") {
+    if (
+      (e.rel === "ordersBefore" || e.rel === "loopsBack") &&
+      from?.type === "event" &&
+      to?.type === "event"
+    ) {
       if (from.swimlaneId !== to.swimlaneId) {
         issues.push({
-          code: "orders_before_cross_stream",
-          message: `then edge cannot cross streams (${from.swimlaneId} → ${to.swimlaneId})`,
+          code: "stream_edge_cross_stream",
+          message: `${e.rel} edge cannot cross streams (${from.swimlaneId} → ${to.swimlaneId})`,
           edgeId: e.id,
         });
+      }
+    }
+  }
+
+  for (const lane of doc.swimlanes) {
+    const shape = lane.streamShape;
+    if (!shape) continue;
+
+    const eventIdsOnLane = new Set(
+      doc.nodes.filter((n) => n.type === "event" && n.swimlaneId === lane.id).map((n) => n.id),
+    );
+
+    const checkRef = (id: string, field: string) => {
+      const node = byId.get(id);
+      if (!node) {
+        issues.push({
+          code: "stream_shape_unknown_event",
+          message: `Stream "${lane.name}" ${field} references missing node "${id}"`,
+        });
+        return;
+      }
+      if (node.type !== "event" || node.swimlaneId !== lane.id) {
+        issues.push({
+          code: "stream_shape_wrong_stream",
+          message: `Stream "${lane.name}" ${field} must reference an event on that stream`,
+          nodeId: id,
+        });
+      }
+    };
+
+    for (const id of shape.entryOneOf ?? []) checkRef(id, "entryOneOf");
+    for (const id of shape.exitOneOf ?? []) checkRef(id, "exitOneOf");
+
+    if (shape.unorderedPool) {
+      checkRef(shape.unorderedPool.afterEventId, "unorderedPool.afterEventId");
+      for (const id of shape.unorderedPool.eventIds) checkRef(id, "unorderedPool.eventIds");
+    }
+
+    if (shape.layoutColumns) {
+      for (const col of shape.layoutColumns) {
+        for (const id of col) {
+          if (!eventIdsOnLane.has(id)) {
+            issues.push({
+              code: "stream_shape_layout_column",
+              message: `Stream "${lane.name}" layoutColumns references unknown event "${id}"`,
+            });
+          }
+        }
       }
     }
   }

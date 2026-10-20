@@ -23,7 +23,8 @@ export type LaneRowScreen = {
 
 export function laneRowScreenRect(row: SwimlaneRow, viewport: FlowViewport): LaneRowScreen {
   const top = flowYToScreenY(row.y, viewport);
-  const height = flowLenToScreen(LANE_ROW_HEIGHT, viewport);
+  const laneH = row.height ?? LANE_ROW_HEIGHT;
+  const height = flowLenToScreen(laneH, viewport);
   return { laneId: row.id, top, height, centerY: top + height / 2 };
 }
 

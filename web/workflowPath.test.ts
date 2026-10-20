@@ -18,7 +18,28 @@ test("inactive when either endpoint missing", () => {
 });
 
 test("valid chain on subscription stream", () => {
-  const r = computeWorkflowPath(apex, "evt-entitlement-imported", "evt-subscription-cancelled");
+  const r = computeWorkflowPath(apex, "evt-trial-started", "evt-subscription-cancelled");
+  assert.equal(r.status, "valid");
+  if (r.status !== "valid") return;
+  assert.equal(r.eventIds.size, 4);
+  assert.equal(r.edgeIds.size, 3);
+});
+
+test("subscription entries are not chained to each other", () => {
+  const r = computeWorkflowPath(apex, "evt-entitlement-imported", "evt-trial-started");
+  assert.equal(r.status, "invalid");
+});
+
+test("interview loop allows scored after advanced on path", () => {
+  const r = computeWorkflowPath(apex, "evt-interview-started", "evt-interview-scored");
+  assert.equal(r.status, "valid");
+  if (r.status !== "valid") return;
+  assert.ok(r.eventIds.has("evt-interview-advanced"));
+  assert.ok(r.edgeIds.has("loop-interview-advanced-scored"));
+});
+
+test("study group linear chain", () => {
+  const r = computeWorkflowPath(apex, "evt-group-created", "evt-group-settings-updated");
   assert.equal(r.status, "valid");
   if (r.status !== "valid") return;
   assert.equal(r.eventIds.size, 5);

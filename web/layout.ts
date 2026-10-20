@@ -1,5 +1,17 @@
 import type { BlueprintDocument } from "@schema/document.js";
 import type { BlueprintNode } from "@schema/nodes.js";
+import type { StreamShape } from "@schema/streamShape.js";
+import { layoutAllStreams } from "./streamLayout.js";
+
+const STREAM_STACK_GAP = 96;
+const STREAM_ROW_PAD = 28;
+
+function laneHeightForStreamShape(shape?: StreamShape): number {
+  if (!shape?.layoutColumns?.length) return LANE_ROW_HEIGHT;
+  const depth = Math.max(...shape.layoutColumns.map((c) => c.length), 1);
+  if (depth <= 1) return LANE_ROW_HEIGHT;
+  return (depth - 1) * STREAM_STACK_GAP + NODE_H + STREAM_ROW_PAD * 2;
+}
 
 /** Left gutter: swimlane labels only — not part of any time slice. */
 export const SWIMLANE_GUTTER = 200;
@@ -10,8 +22,8 @@ export const LANE_ROW_HEIGHT = 128;
 export const BAND_GAP = 52;
 
 /** Top Y for a sticky centered in its swimlane row (React Flow node origin). */
-export function yForLaneRow(rowY: number): number {
-  return rowY + (LANE_ROW_HEIGHT - NODE_H) / 2;
+export function yForLaneRow(rowY: number, laneHeight: number = LANE_ROW_HEIGHT): number {
+  return rowY + (laneHeight - NODE_H) / 2;
 }
 export const SLICE_PAD = 16;
 
@@ -34,6 +46,8 @@ export type SwimlaneRow = {
   order: number;
   y: number;
   yLine: number;
+  /** Row height in flow space (events streams may grow for vertical OR stacks). */
+  height: number;
   streamPattern?: string;
 };
 
@@ -82,8 +96,12 @@ function buildTimelineX(
   events: Array<BlueprintNode & { type: "event" }>,
   viewsByAnchor: Map<string, BlueprintNode[]>,
   maxScreensAtTi: Map<number, number>,
+  streamShape?: StreamShape,
 ): (timelineIndex: number) => number {
-  const indices = [...new Set(events.map((e) => e.timelineIndex))].sort((a, b) => a - b);
+  const indices =
+    streamShape?.layoutColumns?.length ?
+      streamShape.layoutColumns.map((_, i) => i)
+    : [...new Set(events.map((e) => e.timelineIndex))].sort((a, b) => a - b);
   const xAt = new Map<number, number>();
   let x = SWIMLANE_GUTTER + MARGIN_X;
   for (const ti of indices) {
@@ -147,16 +165,19 @@ function buildSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
     if (!lanes.length) continue;
 
     for (const lane of lanes) {
+      const height =
+        lane.band === "events" ? laneHeightForStreamShape(lane.streamShape) : LANE_ROW_HEIGHT;
       rows.push({
         id: lane.id,
         name: lane.name,
         band: lane.band,
         order: lane.order,
         y,
-        yLine: y + LANE_ROW_HEIGHT,
+        yLine: y + height,
+        height,
         streamPattern: lane.streamPattern,
       });
-      y += LANE_ROW_HEIGHT;
+      y += height;
     }
     y += BAND_GAP;
   }
@@ -193,9 +214,12 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
     return band === "ui" ? yUi : yEvtFallback;
   }
 
+  const laneHeightById = new Map(swimlaneRows.map((r) => [r.id, r.height]));
+
   function eventRowY(swimlaneId: string): number {
     const y = yBySwimlane.get(swimlaneId) ?? yEvtFallback;
-    return yForLaneRow(y);
+    const h = laneHeightById.get(swimlaneId) ?? LANE_ROW_HEIGHT;
+    return yForLaneRow(y, h);
   }
 
   const yMidPlaced = yForLaneRow(yMid);
@@ -219,6 +243,8 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
   }
 
   const eventsByStream = new Map<string, Array<BlueprintNode & { type: "event" }>>();
+  const { positions: streamEventPos } = layoutAllStreams(doc, swimlaneRows);
+
   for (const event of events) {
     const list = eventsByStream.get(event.swimlaneId) ?? [];
     list.push(event);
@@ -228,9 +254,10 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
   const sliceXByStream = new Map<string, (timelineIndex: number) => number>();
   for (const [streamId, streamEvents] of eventsByStream) {
     const maxScreensAtTi = maxScreensPerTimeline(doc, streamEvents);
+    const laneShape = doc.swimlanes.find((s) => s.id === streamId)?.streamShape;
     sliceXByStream.set(
       streamId,
-      buildTimelineX(doc, streamEvents, viewsByAnchor, maxScreensAtTi),
+      buildTimelineX(doc, streamEvents, viewsByAnchor, maxScreensAtTi, laneShape),
     );
   }
 
@@ -265,13 +292,15 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
 
   for (const event of events) {
     const cmd = producingCommand(doc, event.id);
-    const sliceX = sliceXByStream.get(event.swimlaneId) ?? sliceXByStream.values().next().value!;
-    const anchorX = sliceX(event.timelineIndex);
+    const streamPos = streamEventPos.get(event.id);
+    const sliceX = sliceXByStream.get(event.swimlaneId) ?? defaultSliceX;
+    const anchorX = streamPos?.x ?? sliceX(event.timelineIndex);
+    const anchorY = streamPos?.y ?? eventRowY(event.swimlaneId);
 
     if (cmd) {
       positions.set(cmd.id, { x: anchorX, y: yMidPlaced });
     }
-    positions.set(event.id, { x: anchorX, y: eventRowY(event.swimlaneId) });
+    positions.set(event.id, { x: anchorX, y: anchorY });
 
     const fan = viewsByAnchor.get(event.id) ?? [];
     const viewStartX = anchorX + NODE_W + GAP_AFTER_COMMAND;
@@ -319,4 +348,34 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
 
 export function computePositions(doc: BlueprintDocument): Map<string, NodePosition> {
   return computeLayout(doc).positions;
+}
+
+const DIAGRAM_EXTENT_PAD = 80;
+
+/** Clamp panning to content bounds (avoids huge empty canvas). */
+export function diagramTranslateExtent(layout: LayoutResult): [[number, number], [number, number]] {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const p of layout.positions.values()) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + NODE_W);
+    maxY = Math.max(maxY, p.y + NODE_H);
+  }
+
+  if (!Number.isFinite(minX)) {
+    return [
+      [0, 0],
+      [800, 600],
+    ];
+  }
+
+  const pad = DIAGRAM_EXTENT_PAD;
+  return [
+    [minX - pad, minY - pad],
+    [maxX + pad, maxY + pad],
+  ];
 }

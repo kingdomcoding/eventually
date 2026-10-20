@@ -5,7 +5,6 @@ import {
   focusEmphasisClosure,
 } from "./graphIndex.js";
 import type { WorkflowPathResult } from "./workflowPath.js";
-
 export type FocusState = {
   showAll: boolean;
   focusAnchorId: string | null;
@@ -193,7 +192,7 @@ export function edgeShouldAnimate(
 
   if (state.openEventIds.size > 0) return false;
 
-  return be.rel === "ordersBefore";
+  return false;
 }
 
 export function edgeDisplayTier(

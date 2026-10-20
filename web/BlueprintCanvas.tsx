@@ -110,7 +110,6 @@ export function BlueprintCanvas() {
 
   const doc = useMemo(() => BlueprintDocumentSchema.parse(sample), []);
   const layout = useMemo(() => computeLayout(doc), [doc]);
-
   const [flowViewport, setFlowViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [gutterHeight, setGutterHeight] = useState(600);
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -349,10 +348,6 @@ export function BlueprintCanvas() {
         animated: animate,
         zIndex: isRouteEdge ? 8 : e.zIndex,
         className: classNames || undefined,
-        label: isRouteEdge ? "then" : e.label,
-        labelStyle: isRouteEdge
-          ? { fill: "#dbeafe", fontSize: 11, fontWeight: 600 }
-          : e.labelStyle,
         style: {
           ...e.style,
           stroke: isRouteEdge ? WORKFLOW_ROUTE_STROKE : e.style?.stroke,

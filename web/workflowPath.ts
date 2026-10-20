@@ -23,14 +23,36 @@ export type WorkflowPathResult =
       neighborIds: ReadonlySet<string>;
     };
 
-function thenAdjacency(doc: BlueprintDocument): Map<string, string[]> {
+function addAdj(adj: Map<string, string[]>, from: string, to: string) {
+  if (from === to) return;
+  const list = adj.get(from) ?? [];
+  if (!list.includes(to)) list.push(to);
+  adj.set(from, list);
+}
+
+/** Partial-order reachability on one stream (then, loop-back, unordered pool). */
+function streamAdjacency(doc: BlueprintDocument, swimlaneId: string): Map<string, string[]> {
   const adj = new Map<string, string[]>();
+
   for (const e of doc.edges) {
-    if (e.rel !== "ordersBefore") continue;
-    const list = adj.get(e.from) ?? [];
-    list.push(e.to);
-    adj.set(e.from, list);
+    if (e.rel !== "ordersBefore" && e.rel !== "loopsBack") continue;
+    const from = doc.nodes.find((n) => n.id === e.from);
+    const to = doc.nodes.find((n) => n.id === e.to);
+    if (from?.swimlaneId !== swimlaneId || to?.swimlaneId !== swimlaneId) continue;
+    addAdj(adj, e.from, e.to);
   }
+
+  const shape = doc.swimlanes.find((s) => s.id === swimlaneId)?.streamShape;
+  const pool = shape?.unorderedPool;
+  if (pool) {
+    for (const id of pool.eventIds) addAdj(adj, pool.afterEventId, id);
+    for (const a of pool.eventIds) {
+      for (const b of pool.eventIds) {
+        if (a !== b) addAdj(adj, a, b);
+      }
+    }
+  }
+
   return adj;
 }
 
@@ -121,13 +143,13 @@ export function computeWorkflowPath(
     };
   }
 
-  const adj = thenAdjacency(doc);
+  const adj = streamAdjacency(doc, fromNode.swimlaneId);
   const fromReach = forwardReach(fromEventId, adj);
   if (!fromReach.has(toEventId)) {
     return {
       status: "invalid",
       code: "not_connected",
-      message: "No then-chain connects start to end. Start must come before end.",
+      message: "No valid path connects start to end on this stream (check then, loop, and pool rules).",
     };
   }
 
@@ -139,7 +161,7 @@ export function computeWorkflowPath(
 
   const edgeIds = new Set<string>();
   for (const e of doc.edges) {
-    if (e.rel !== "ordersBefore") continue;
+    if (e.rel !== "ordersBefore" && e.rel !== "loopsBack") continue;
     if (eventIds.has(e.from) && eventIds.has(e.to)) edgeIds.add(e.id);
   }
 

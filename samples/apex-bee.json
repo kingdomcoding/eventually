@@ -12,21 +12,48 @@
       "name": "Device",
       "band": "events",
       "order": 0,
-      "streamPattern": "device-{deviceToken}"
+      "streamPattern": "device-{deviceToken}",
+      "streamShape": {
+        "entryOneOf": ["evt-device-imported", "evt-device-registered"],
+        "layoutColumns": [
+          ["evt-device-imported", "evt-device-registered"],
+          ["evt-device-revoked"]
+        ]
+      }
     },
     {
       "id": "stream-subscription",
       "name": "Subscription",
       "band": "events",
       "order": 1,
-      "streamPattern": "subscription-{userId}"
+      "streamPattern": "subscription-{userId}",
+      "streamShape": {
+        "entryOneOf": ["evt-entitlement-imported", "evt-trial-started"],
+        "layoutColumns": [
+          ["evt-entitlement-imported", "evt-trial-started"],
+          ["evt-subscription-activated"],
+          ["evt-subscription-updated"],
+          ["evt-subscription-cancelled"]
+        ]
+      }
     },
     {
       "id": "stream-payment",
       "name": "Payment",
       "band": "events",
       "order": 2,
-      "streamPattern": "payment-{reference}"
+      "streamPattern": "payment-{reference}",
+      "streamShape": {
+        "entryOneOf": [
+          "evt-payment-initiated",
+          "evt-payment-imported",
+          "evt-manual-payment"
+        ],
+        "layoutColumns": [
+          ["evt-payment-initiated", "evt-payment-imported", "evt-manual-payment"],
+          ["evt-payment-confirmed"]
+        ]
+      }
     },
     {
       "id": "stream-attempt",
@@ -40,7 +67,16 @@
       "name": "Interview session",
       "band": "events",
       "order": 4,
-      "streamPattern": "interview-{sessionId}"
+      "streamPattern": "interview-{sessionId}",
+      "streamShape": {
+        "exitOneOf": ["evt-interview-finished", "evt-interview-abandoned"],
+        "layoutColumns": [
+          ["evt-interview-started"],
+          ["evt-interview-scored"],
+          ["evt-interview-advanced"],
+          ["evt-interview-finished", "evt-interview-abandoned"]
+        ]
+      }
     },
     {
       "id": "stream-group",
@@ -61,7 +97,14 @@
       "name": "Question flag",
       "band": "events",
       "order": 7,
-      "streamPattern": "flag-{flagId}"
+      "streamPattern": "flag-{flagId}",
+      "streamShape": {
+        "entryOneOf": ["evt-flag-imported", "evt-flag-raised"],
+        "layoutColumns": [
+          ["evt-flag-imported", "evt-flag-raised"],
+          ["evt-flag-resolved"]
+        ]
+      }
     }
   ],
   "nodes": [
@@ -431,7 +474,7 @@
       "name": "GroupSettingsUpdatedV1",
       "swimlaneId": "stream-group",
       "sliceId": "stream-group",
-      "timelineIndex": 2,
+      "timelineIndex": 4,
       "payload": [
         {
           "name": "payload",
@@ -449,7 +492,7 @@
       "name": "MemberJoinedV1",
       "swimlaneId": "stream-group",
       "sliceId": "stream-group",
-      "timelineIndex": 3,
+      "timelineIndex": 2,
       "payload": [
         {
           "name": "payload",
@@ -467,7 +510,7 @@
       "name": "MemberLeftV1",
       "swimlaneId": "stream-group",
       "sliceId": "stream-group",
-      "timelineIndex": 4,
+      "timelineIndex": 3,
       "payload": [
         {
           "name": "payload",
@@ -572,103 +615,115 @@
   ],
   "edges": [
     {
-      "id": "then-0",
+      "id": "then-device-import-revoke",
       "from": "evt-device-imported",
-      "to": "evt-device-registered",
+      "to": "evt-device-revoked",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-1",
+      "id": "then-device-register-revoke",
       "from": "evt-device-registered",
       "to": "evt-device-revoked",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-2",
+      "id": "then-entitlement-activated",
       "from": "evt-entitlement-imported",
-      "to": "evt-trial-started",
+      "to": "evt-subscription-activated",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-3",
+      "id": "then-trial-activated",
       "from": "evt-trial-started",
       "to": "evt-subscription-activated",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-4",
+      "id": "then-activated-updated",
       "from": "evt-subscription-activated",
       "to": "evt-subscription-updated",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-5",
+      "id": "then-updated-cancelled",
       "from": "evt-subscription-updated",
       "to": "evt-subscription-cancelled",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-6",
+      "id": "then-payment-initiated-confirmed",
       "from": "evt-payment-initiated",
       "to": "evt-payment-confirmed",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-7",
+      "id": "then-interview-started-scored",
       "from": "evt-interview-started",
       "to": "evt-interview-scored",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-8",
+      "id": "then-interview-scored-advanced",
       "from": "evt-interview-scored",
       "to": "evt-interview-advanced",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-9",
+      "id": "then-interview-advanced-finished",
       "from": "evt-interview-advanced",
       "to": "evt-interview-finished",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-10",
+      "id": "then-interview-advanced-abandoned",
       "from": "evt-interview-advanced",
       "to": "evt-interview-abandoned",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-11",
+      "id": "loop-interview-advanced-scored",
+      "from": "evt-interview-advanced",
+      "to": "evt-interview-scored",
+      "rel": "loopsBack"
+    },
+    {
+      "id": "then-group-created-join-code",
       "from": "evt-group-created",
       "to": "evt-join-code-set",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-12",
+      "id": "then-join-code-member-joined",
       "from": "evt-join-code-set",
-      "to": "evt-group-settings-updated",
-      "rel": "ordersBefore"
-    },
-    {
-      "id": "then-13",
-      "from": "evt-group-settings-updated",
       "to": "evt-member-joined",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-14",
+      "id": "then-member-joined-left",
       "from": "evt-member-joined",
       "to": "evt-member-left",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-15",
+      "id": "then-member-left-settings",
+      "from": "evt-member-left",
+      "to": "evt-group-settings-updated",
+      "rel": "ordersBefore"
+    },
+    {
+      "id": "then-joint-opened-closed",
       "from": "evt-joint-opened",
       "to": "evt-joint-closed",
       "rel": "ordersBefore"
     },
     {
-      "id": "then-16",
+      "id": "then-flag-imported-resolved",
+      "from": "evt-flag-imported",
+      "to": "evt-flag-resolved",
+      "rel": "ordersBefore"
+    },
+    {
+      "id": "then-flag-raised-resolved",
       "from": "evt-flag-raised",
       "to": "evt-flag-resolved",
       "rel": "ordersBefore"
