@@ -34,6 +34,7 @@ export type SwimlaneRow = {
   order: number;
   y: number;
   yLine: number;
+  streamPattern?: string;
 };
 
 export type LayoutResult = {
@@ -153,6 +154,7 @@ function buildSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
         order: lane.order,
         y,
         yLine: y + LANE_ROW_HEIGHT,
+        streamPattern: lane.streamPattern,
       });
       y += LANE_ROW_HEIGHT;
     }
@@ -183,32 +185,20 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
   const yBySwimlane = new Map(swimlaneRows.map((r) => [r.id, r.y]));
   const yUi = swimlaneRows.find((r) => r.band === "ui")?.y ?? 48;
   const yMid = swimlaneRows.find((r) => r.band === "commandView")?.y ?? 220;
-  const yEvt = swimlaneRows.find((r) => r.band === "events")?.y ?? 400;
+  const yEvtFallback = swimlaneRows.find((r) => r.band === "events")?.y ?? 400;
 
   function rowY(swimlaneId: string, band: "ui" | "events"): number {
     const y = yBySwimlane.get(swimlaneId);
     if (y !== undefined) return y;
-    return band === "ui" ? yUi : yEvt;
+    return band === "ui" ? yUi : yEvtFallback;
   }
 
-  /** All events share the single events-band row (timeline). */
-  function eventRowY(_swimlaneId: string): number {
-    return yForLaneRow(yEvt);
+  function eventRowY(swimlaneId: string): number {
+    const y = yBySwimlane.get(swimlaneId) ?? yEvtFallback;
+    return yForLaneRow(y);
   }
 
   const yMidPlaced = yForLaneRow(yMid);
-
-  function timelineXForSlice(sliceId: string): number {
-    const inSlice = doc.nodes.filter((n) => n.sliceId === sliceId);
-    const evt = inSlice.find((n) => n.type === "event");
-    if (evt && evt.type === "event") return sliceX(evt.timelineIndex);
-    const linked = doc.edges
-      .filter((e) => e.rel === "issues" && inSlice.some((n) => n.id === e.from))
-      .map((e) => positions.get(e.to))
-      .find(Boolean);
-    if (linked) return linked.x;
-    return sliceX(0);
-  }
 
   const positions = new Map<string, NodePosition>();
 
@@ -228,8 +218,42 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
     viewsByAnchor.get(key)!.push(view);
   }
 
-  const maxScreensAtTi = maxScreensPerTimeline(doc, events);
-  const sliceX = buildTimelineX(doc, events, viewsByAnchor, maxScreensAtTi);
+  const eventsByStream = new Map<string, Array<BlueprintNode & { type: "event" }>>();
+  for (const event of events) {
+    const list = eventsByStream.get(event.swimlaneId) ?? [];
+    list.push(event);
+    eventsByStream.set(event.swimlaneId, list);
+  }
+
+  const sliceXByStream = new Map<string, (timelineIndex: number) => number>();
+  for (const [streamId, streamEvents] of eventsByStream) {
+    const maxScreensAtTi = maxScreensPerTimeline(doc, streamEvents);
+    sliceXByStream.set(
+      streamId,
+      buildTimelineX(doc, streamEvents, viewsByAnchor, maxScreensAtTi),
+    );
+  }
+
+  const defaultSliceX: (timelineIndex: number) => number =
+    sliceXByStream.values().next().value ??
+    ((timelineIndex: number) => SWIMLANE_GUTTER + MARGIN_X + timelineIndex * (MIN_COL_WIDTH + INTER_COL_GAP));
+
+  function xOnStream(swimlaneId: string, timelineIndex: number): number {
+    return (sliceXByStream.get(swimlaneId) ?? defaultSliceX)(timelineIndex);
+  }
+
+  function timelineXForSlice(sliceId: string): number {
+    const inSlice = doc.nodes.filter((n) => n.sliceId === sliceId);
+    const evt = inSlice.find((n) => n.type === "event");
+    if (evt && evt.type === "event") return xOnStream(evt.swimlaneId, evt.timelineIndex);
+    const linked = doc.edges
+      .filter((e) => e.rel === "issues" && inSlice.some((n) => n.id === e.from))
+      .map((e) => positions.get(e.to))
+      .find(Boolean);
+    if (linked) return linked.x;
+    return defaultSliceX(0);
+  }
+
   const screenSlot = new Map<string, number>();
 
   function placeScreen(id: string, baseX: number, swimlaneId: string, laneRowY: number) {
@@ -241,6 +265,7 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
 
   for (const event of events) {
     const cmd = producingCommand(doc, event.id);
+    const sliceX = sliceXByStream.get(event.swimlaneId) ?? sliceXByStream.values().next().value!;
     const anchorX = sliceX(event.timelineIndex);
 
     if (cmd) {
@@ -260,7 +285,7 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
   }
 
   for (const view of viewsByAnchor.get("orphan") ?? []) {
-    positions.set(view.id, { x: sliceX(0) + NODE_W + GAP_AFTER_COMMAND, y: yMidPlaced });
+    positions.set(view.id, { x: defaultSliceX(0) + NODE_W + GAP_AFTER_COMMAND, y: yMidPlaced });
   }
 
   for (const n of doc.nodes) {
@@ -273,19 +298,19 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
       const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
       if (issue) {
         const cmdPos = positions.get(issue.to);
-        placeScreen(n.id, cmdPos?.x ?? sliceX(0), n.swimlaneId, laneTop);
+        placeScreen(n.id, cmdPos?.x ?? defaultSliceX(0), n.swimlaneId, laneTop);
         continue;
       }
       const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
       if (render) {
         const viewPos = positions.get(render.from);
-        placeScreen(n.id, viewPos?.x ?? sliceX(0), n.swimlaneId, laneTop);
+        placeScreen(n.id, viewPos?.x ?? defaultSliceX(0), n.swimlaneId, laneTop);
         continue;
       }
       placeScreen(n.id, timelineXForSlice(n.sliceId), n.swimlaneId, laneTop);
     }
     if (n.type === "integration") {
-      positions.set(n.id, { x: sliceX(0), y: yMidPlaced });
+      positions.set(n.id, { x: defaultSliceX(0), y: yMidPlaced });
     }
   }
 

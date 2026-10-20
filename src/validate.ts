@@ -21,14 +21,6 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
 
   const laneById = new Map(doc.swimlanes.map((s) => [s.id, s]));
 
-  const eventSwimlanes = doc.swimlanes.filter((s) => s.band === "events");
-  if (eventSwimlanes.length > 1) {
-    issues.push({
-      code: "multiple_events_swimlanes",
-      message: `Expected at most one events swimlane, found ${eventSwimlanes.length}`,
-    });
-  }
-
   for (const n of doc.nodes) {
     if (!swimlaneIds.has(n.swimlaneId)) {
       issues.push({
@@ -39,10 +31,10 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
       continue;
     }
     const lane = laneById.get(n.swimlaneId)!;
-    if (n.type === "event" && eventSwimlanes.length === 1 && n.swimlaneId !== eventSwimlanes[0]!.id) {
+    if (n.type === "event" && lane.band !== "events") {
       issues.push({
-        code: "event_swimlane_not_timeline",
-        message: `Event "${n.name}" must use the events swimlane "${eventSwimlanes[0]!.id}"`,
+        code: "event_swimlane_not_stream",
+        message: `Event "${n.name}" must use a swimlane in the Streams band`,
         nodeId: n.id,
       });
     }
@@ -80,6 +72,15 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
         issues.push({
           code: "invalid_edge_types",
           message: `Edge ${e.rel} cannot connect ${from.type} → ${to.type}`,
+          edgeId: e.id,
+        });
+      }
+    }
+    if (e.rel === "ordersBefore" && from?.type === "event" && to?.type === "event") {
+      if (from.swimlaneId !== to.swimlaneId) {
+        issues.push({
+          code: "orders_before_cross_stream",
+          message: `then edge cannot cross streams (${from.swimlaneId} → ${to.swimlaneId})`,
           edgeId: e.id,
         });
       }
@@ -146,13 +147,18 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
   }
 
   const events = doc.nodes.filter((n) => n.type === "event");
-  const indices = events.map((e) => e.timelineIndex);
-  const indexSet = new Set(indices);
-  if (indexSet.size !== indices.length) {
-    issues.push({
-      code: "duplicate_timeline_index",
-      message: "Two events share the same timelineIndex",
-    });
+  const indicesByStream = new Map<string, Set<number>>();
+  for (const e of events) {
+    const set = indicesByStream.get(e.swimlaneId) ?? new Set();
+    if (set.has(e.timelineIndex)) {
+      issues.push({
+        code: "duplicate_timeline_index",
+        message: `Two events on stream "${e.swimlaneId}" share timelineIndex ${e.timelineIndex}`,
+        nodeId: e.id,
+      });
+    }
+    set.add(e.timelineIndex);
+    indicesByStream.set(e.swimlaneId, set);
   }
 
   return issues;

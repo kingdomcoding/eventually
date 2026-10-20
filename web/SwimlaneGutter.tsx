@@ -4,14 +4,18 @@ import type { SwimlaneRow } from "./layout.js";
 import { SWIMLANE_GUTTER } from "./layout.js";
 import { BAND_LABEL } from "./swimlaneLabels.js";
 import type { GutterEmphasisState } from "./gutterEmphasis.js";
-import { bandHeaderEmphasis } from "./gutterEmphasis.js";
+import {
+  bandHasVisibleGutterRows,
+  bandHeaderEmphasis,
+  gutterRowVisible,
+  upperCollapsibleBandsHidden,
+  visibleGutterDividers,
+} from "./gutterEmphasis.js";
 import { swimlaneRowLabel, swimlaneRowLabelNamed } from "./swimlaneLabels.js";
 import {
   allLaneRowsScreen,
   bandGapScreen,
   bandGapsFromRows,
-  gutterDividers,
-  isFirstRowInBand,
   rectIntersectsViewport,
   shouldShowGapLabel,
   type FlowViewport,
@@ -22,6 +26,7 @@ export type SwimlaneGutterProps = {
   viewport: FlowViewport;
   gutterHeight: number;
   emphasis: GutterEmphasisState;
+  showAll: boolean;
 };
 
 function emphasisClass(level: "active" | "present" | "idle"): string {
@@ -32,7 +37,13 @@ function bandClass(band: SwimlaneBand): string {
   return `lane-gutter-band--${band}`;
 }
 
-function SwimlaneGutterComponent({ rows, viewport, gutterHeight, emphasis }: SwimlaneGutterProps) {
+function SwimlaneGutterComponent({
+  rows,
+  viewport,
+  gutterHeight,
+  emphasis,
+  showAll,
+}: SwimlaneGutterProps) {
   const laneScreens = useMemo(() => allLaneRowsScreen(rows, viewport), [rows, viewport]);
 
   const gapScreens = useMemo(() => {
@@ -42,18 +53,46 @@ function SwimlaneGutterComponent({ rows, viewport, gutterHeight, emphasis }: Swi
   const gapLabelVisible = useMemo(() => {
     const map = new Map<SwimlaneBand, boolean>();
     for (const gap of gapScreens) {
+      if (!bandHasVisibleGutterRows(rows, gap.band, emphasis.byLaneTier, showAll)) {
+        map.set(gap.band, false);
+        continue;
+      }
       map.set(
         gap.band,
         shouldShowGapLabel(gap.height, gap.top, gutterHeight),
       );
     }
     return map;
-  }, [gapScreens, gutterHeight]);
+  }, [gapScreens, gutterHeight, emphasis.byLaneTier, showAll]);
 
-  const dividers = useMemo(() => gutterDividers(rows, viewport), [rows, viewport]);
+  const bandChipRowId = useMemo(() => {
+    const map = new Map<SwimlaneBand, string>();
+    for (const row of rows) {
+      if (map.has(row.band)) continue;
+      const tier = emphasis.byLaneTier.get(row.id) ?? "hidden";
+      if (gutterRowVisible(row.band, tier, showAll)) {
+        map.set(row.band, row.id);
+      }
+    }
+    return map;
+  }, [rows, emphasis.byLaneTier, showAll]);
+
+  const dividers = useMemo(
+    () => visibleGutterDividers(rows, viewport, emphasis.byLaneTier, showAll),
+    [rows, viewport, emphasis.byLaneTier, showAll],
+  );
+
+  const timelineOnly = useMemo(
+    () => upperCollapsibleBandsHidden(rows, emphasis.byLaneTier, showAll),
+    [rows, emphasis.byLaneTier, showAll],
+  );
 
   return (
-    <div className="lane-gutter" style={{ width: SWIMLANE_GUTTER }} aria-hidden>
+    <div
+      className={`lane-gutter${timelineOnly ? " lane-gutter--timeline-only" : ""}`}
+      style={{ width: SWIMLANE_GUTTER }}
+      aria-hidden
+    >
       <div className="lane-gutter-dividers">
         {dividers.map((d, i) =>
           rectIntersectsViewport(d.top, 1, gutterHeight) ? (
@@ -87,10 +126,13 @@ function SwimlaneGutterComponent({ rows, viewport, gutterHeight, emphasis }: Swi
           if (!lane) return null;
           if (!rectIntersectsViewport(lane.top, lane.height, gutterHeight)) return null;
 
+          const laneTier = emphasis.byLaneTier.get(row.id) ?? "hidden";
+          if (!gutterRowVisible(row.band, laneTier, showAll)) return null;
+
           const named = swimlaneRowLabelNamed(row.band);
           const rowEm = emphasis.byLaneId.get(row.id) ?? "idle";
-          const firstInBand = isFirstRowInBand(rows, i);
-          const showBandChip = firstInBand && !gapLabelVisible.get(row.band);
+          const showBandChip =
+            bandChipRowId.get(row.band) === row.id && !gapLabelVisible.get(row.band);
           const bandEm = emphasis.byBand.get(row.band) ?? "idle";
 
           return (
@@ -107,7 +149,10 @@ function SwimlaneGutterComponent({ rows, viewport, gutterHeight, emphasis }: Swi
                 </div>
               ) : null}
               <div className={`lane-gutter-label${named ? " lane-gutter-label--named" : ""}`}>
-                {swimlaneRowLabel(row.band, row.name)}
+                <span className="lane-gutter-label__title">{swimlaneRowLabel(row.band, row.name)}</span>
+                {row.streamPattern ? (
+                  <span className="lane-gutter-label__pattern">{row.streamPattern}</span>
+                ) : null}
               </div>
             </div>
           );
