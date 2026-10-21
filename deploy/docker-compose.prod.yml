@@ -1,0 +1,11 @@
+name: eventually
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: eventually
+    restart: unless-stopped
+    ports:
+      - "172.17.0.1:4822:80"
