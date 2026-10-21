@@ -681,12 +681,6 @@
       "rel": "ordersBefore"
     },
     {
-      "id": "loop-interview-advanced-scored",
-      "from": "evt-interview-advanced",
-      "to": "evt-interview-scored",
-      "rel": "loopsBack"
-    },
-    {
       "id": "then-group-created-join-code",
       "from": "evt-group-created",
       "to": "evt-join-code-set",

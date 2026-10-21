@@ -30,12 +30,12 @@ test("subscription entries are not chained to each other", () => {
   assert.equal(r.status, "invalid");
 });
 
-test("interview loop allows scored after advanced on path", () => {
+test("interview spine from started to scored", () => {
   const r = computeWorkflowPath(apex, "evt-interview-started", "evt-interview-scored");
   assert.equal(r.status, "valid");
   if (r.status !== "valid") return;
-  assert.ok(r.eventIds.has("evt-interview-advanced"));
-  assert.ok(r.edgeIds.has("loop-interview-advanced-scored"));
+  assert.equal(r.eventIds.size, 2);
+  assert.ok(r.edgeIds.has("then-interview-started-scored"));
 });
 
 test("study group linear chain", () => {

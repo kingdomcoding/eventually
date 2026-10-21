@@ -14,10 +14,10 @@ Each **streams** swimlane can carry optional `streamShape` metadata beside `stre
 ## Edges
 
 - `ordersBefore` — required precedence on the same stream (then).
-- `loopsBack` — optional cycle (e.g. interview advanced → scored).
+- `loopsBack` — optional cycle on a stream when the domain allows repeating a step.
 
 Workflow routing uses then + loop-back + pool clique reachability on **one stream only**.
 
 ## Sample
 
-See `samples/apex-bee.json` for Apex Bee’s eight stream kinds with OR-starts, payment tines, interview loop, study-group pool, and flag OR-starts.
+See `samples/apex-bee.json` for Apex Bee’s eight stream kinds with OR-starts, payment tines, interview spine, study-group chain, and flag OR-starts.
