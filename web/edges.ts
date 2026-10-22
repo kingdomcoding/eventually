@@ -36,11 +36,23 @@ function isLongRangeUpdate(
 const PRIMARY_RELS = new Set(["issues", "produces", "updates", "rendersOn"]);
 const STROKE_DASH = "7 5";
 
+export type BuildEdgesOptions = {
+  /** When false, omit stream spine edges (ordersBefore, loopsBack). */
+  includeStreamEdges?: boolean;
+};
+
 export function buildEdges(
   doc: BlueprintDocument,
   positions: Map<string, NodePosition>,
+  options: BuildEdgesOptions = {},
 ): Edge[] {
-  return doc.edges.map((e) => {
+  const includeStream = options.includeStreamEdges !== false;
+  return doc.edges
+    .filter((e) => {
+      if (includeStream) return true;
+      return e.rel !== "ordersBefore" && e.rel !== "loopsBack";
+    })
+    .map((e) => {
     const longRange = isLongRangeUpdate(e.rel, e.from, e.to, positions);
     const isTimeline = e.rel === "ordersBefore";
     const isLoop = e.rel === "loopsBack";

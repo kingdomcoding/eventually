@@ -5,7 +5,11 @@ import {
   focusEmphasisClosure,
 } from "./graphIndex.js";
 import type { WorkflowPathResult } from "./workflowPath.js";
+import type { DiagramMode } from "./sessionTypes.js";
+export type { DiagramMode };
+
 export type FocusState = {
+  diagramMode: DiagramMode;
   showAll: boolean;
   focusAnchorId: string | null;
   /** Visibility: events explicitly opened by click; detail stays until that event is closed. */
@@ -24,8 +28,12 @@ export function connectedNodeIds(doc: BlueprintDocument, eventId: string): Set<s
   return eventDetailCluster(doc, eventId);
 }
 
+function stackExpanded(state: FocusState): boolean {
+  return state.diagramMode === "timeline";
+}
+
 export function focusHold(state: FocusState): boolean {
-  return !state.showAll && state.openEventIds.size === 0 && state.focusAnchorId !== null;
+  return !stackExpanded(state) && state.openEventIds.size === 0 && state.focusAnchorId !== null;
 }
 
 /** Sticky node ids currently shown (not hidden tier) for camera framing. */
@@ -117,7 +125,7 @@ export function nodeDisplayTier(
   const n = doc.nodes.find((x) => x.id === nodeId);
   if (!n) return "hidden";
 
-  if (state.showAll) {
+  if (stackExpanded(state)) {
     if (workflowValid(state)) {
       const wf = workflowNodeTier(doc, nodeId, state, previewPhase);
       if (wf === "full") return "full";
@@ -179,10 +187,10 @@ export function edgeShouldAnimate(
   if (tier === "hidden") return false;
 
   if (workflowValid(state) && be.rel === "ordersBefore" && state.workflowPath.edgeIds.has(blueprintEdgeId)) {
-    return !state.showAll;
+    return !stackExpanded(state);
   }
 
-  if (state.showAll) return false;
+  if (stackExpanded(state)) return false;
 
   if (state.focusAnchorId) {
     if (be.rel === "ordersBefore" || !DETAIL_RELS.has(be.rel)) return false;
@@ -218,7 +226,7 @@ export function edgeDisplayTier(
     return "context";
   }
 
-  if (state.showAll) return "full";
+  if (stackExpanded(state)) return "full";
 
   if (be.rel === "ordersBefore") {
     return state.focusAnchorId || boardIsExpanded(state) || focusHold(state) ? "context" : "full";

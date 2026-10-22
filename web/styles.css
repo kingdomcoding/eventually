@@ -14,8 +14,20 @@ body,
 
 .app-shell {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   height: 100%;
+  min-height: 0;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.app-body .canvas-wrap {
+  flex: 1;
 }
 
 .app-header {
@@ -77,9 +89,34 @@ body,
   background: #f5c542;
 }
 
+.view-mode-toggle--secondary {
+  margin-left: 0.35rem;
+}
+
+.view-mode-toggle--secondary button.is-active {
+  background: #5ba3e8;
+}
+
+.app-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.canvas-wrap {
+  transition: opacity 0.35s ease;
+}
+
+.canvas-wrap--timeline .lane-gutter-row.lane-gutter-band--events .lane-gutter-label__pattern {
+  display: none;
+}
+
 .view-mode-hint {
   font-size: 0.68rem;
   color: #6b829c;
+  flex-basis: 100%;
+  max-width: 42rem;
 }
 
 .workflow-bar {

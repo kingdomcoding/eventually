@@ -25,6 +25,8 @@ export const BlueprintMetaSchema = z.object({
   name: z.string().min(1),
   version: z.number().int().positive(),
   modelVersion: z.number().int().positive(),
+  /** Global left-to-right story order (event node ids) for timeline mode. */
+  narrativeOrder: z.array(z.string().min(1)).optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });

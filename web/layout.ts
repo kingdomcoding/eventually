@@ -1,7 +1,48 @@
 import type { BlueprintDocument } from "@schema/document.js";
 import type { BlueprintNode } from "@schema/nodes.js";
 import type { StreamShape } from "@schema/streamShape.js";
+import {
+  BAND_GAP,
+  COL_WIDTH,
+  GAP_AFTER_COMMAND,
+  INTER_COL_GAP,
+  LANE_ROW_HEIGHT,
+  MARGIN_X,
+  MIN_COL_WIDTH,
+  NODE_H,
+  NODE_W,
+  SCREEN_STAGGER_X,
+  SLICE_PAD,
+  SWIMLANE_GUTTER,
+  yForLaneRow,
+  type LayoutResult,
+  type NodePosition,
+  type SwimlaneRow,
+} from "./layoutMetrics.js";
 import { layoutAllStreams } from "./streamLayout.js";
+import { computeTimelineLayout } from "./timelineLayout.js";
+
+import type { DiagramMode } from "./sessionTypes.js";
+export type { DiagramMode };
+
+export {
+  BAND_GAP,
+  COL_WIDTH,
+  GAP_AFTER_COMMAND,
+  INTER_COL_GAP,
+  LANE_ROW_HEIGHT,
+  MARGIN_X,
+  MIN_COL_WIDTH,
+  NODE_H,
+  NODE_W,
+  SCREEN_STAGGER_X,
+  SLICE_PAD,
+  SWIMLANE_GUTTER,
+  yForLaneRow,
+  type LayoutResult,
+  type NodePosition,
+  type SwimlaneRow,
+};
 
 const STREAM_STACK_GAP = 96;
 const STREAM_ROW_PAD = 28;
@@ -12,49 +53,6 @@ function laneHeightForStreamShape(shape?: StreamShape): number {
   if (depth <= 1) return LANE_ROW_HEIGHT;
   return (depth - 1) * STREAM_STACK_GAP + NODE_H + STREAM_ROW_PAD * 2;
 }
-
-/** Left gutter: swimlane labels only — not part of any time slice. */
-export const SWIMLANE_GUTTER = 200;
-
-export const COL_WIDTH = 340;
-export const MARGIN_X = 48;
-export const LANE_ROW_HEIGHT = 128;
-export const BAND_GAP = 52;
-
-/** Top Y for a sticky centered in its swimlane row (React Flow node origin). */
-export function yForLaneRow(rowY: number, laneHeight: number = LANE_ROW_HEIGHT): number {
-  return rowY + (laneHeight - NODE_H) / 2;
-}
-export const SLICE_PAD = 16;
-
-export const NODE_W = 168;
-export const NODE_H = 76;
-
-const GAP_AFTER_COMMAND = 28;
-/** Space between timeline columns (after each column’s content width). */
-const INTER_COL_GAP = 32;
-const MIN_COL_WIDTH = NODE_W + 40;
-/** Horizontal stagger when two screens share a swimlane and column anchor. */
-const SCREEN_STAGGER_X = NODE_W + 24;
-
-export type NodePosition = { x: number; y: number };
-
-export type SwimlaneRow = {
-  id: string;
-  name: string;
-  band: "ui" | "commandView" | "events" | "integration";
-  order: number;
-  y: number;
-  yLine: number;
-  /** Row height in flow space (events streams may grow for vertical OR stacks). */
-  height: number;
-  streamPattern?: string;
-};
-
-export type LayoutResult = {
-  positions: Map<string, NodePosition>;
-  swimlaneRows: SwimlaneRow[];
-};
 
 const BAND_ORDER = ["ui", "commandView", "events", "integration"] as const;
 
@@ -201,7 +199,7 @@ function anchorEventForView(
   return candidates.sort((a, b) => b.timelineIndex - a.timelineIndex)[0];
 }
 
-export function computeLayout(doc: BlueprintDocument): LayoutResult {
+function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
   const swimlaneRows = buildSwimlaneRows(doc);
   const yBySwimlane = new Map(swimlaneRows.map((r) => [r.id, r.y]));
   const yUi = swimlaneRows.find((r) => r.band === "ui")?.y ?? 48;
@@ -346,8 +344,12 @@ export function computeLayout(doc: BlueprintDocument): LayoutResult {
   return { positions, swimlaneRows };
 }
 
-export function computePositions(doc: BlueprintDocument): Map<string, NodePosition> {
-  return computeLayout(doc).positions;
+export function computeLayout(doc: BlueprintDocument, mode: DiagramMode = "swimlane"): LayoutResult {
+  return mode === "timeline" ? computeTimelineLayout(doc) : computeStreamLayout(doc);
+}
+
+export function computePositions(doc: BlueprintDocument, mode: DiagramMode = "swimlane"): Map<string, NodePosition> {
+  return computeLayout(doc, mode).positions;
 }
 
 const DIAGRAM_EXTENT_PAD = 80;

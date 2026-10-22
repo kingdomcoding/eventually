@@ -19,6 +19,7 @@ test("off-path events stay hidden until POI", () => {
   if (path.status !== "valid") return;
 
   const state = {
+    diagramMode: "swimlane" as const,
     showAll: false,
     focusAnchorId: null,
     openEventIds: new Set<string>(),
@@ -42,6 +43,7 @@ test("path events stay full while hovered", () => {
   if (path.status !== "valid") return;
 
   const state = {
+    diagramMode: "swimlane" as const,
     showAll: false,
     focusAnchorId: null,
     openEventIds: new Set<string>(),

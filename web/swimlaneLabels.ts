@@ -7,6 +7,11 @@ export const BAND_LABEL: Record<SwimlaneBand, string> = {
   integration: "Integration",
 };
 
+export const BAND_LABEL_TIMELINE: Record<SwimlaneBand, string> = {
+  ...BAND_LABEL,
+  events: "Events",
+};
+
 export function swimlaneRowLabel(band: SwimlaneBand, laneName: string): string {
   if (band === "ui" || band === "events" || band === "commandView") return laneName;
   return BAND_LABEL[band];

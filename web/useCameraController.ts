@@ -89,17 +89,21 @@ export function useCameraController(options: {
       const duration = prefersReducedMotion() ? 0 : 280;
       ignoreViewportUntil.current = Date.now() + duration + 120;
 
+      const timelineSpine =
+        intent.type === "FrameFullBoard" && getFocusState().diagramMode === "timeline";
+      const fitMinZoom = timelineSpine ? Math.min(minZoom, 0.1) : minZoom;
+
       requestAnimationFrame(() => {
         void fitView({
           nodes: ids.map((id) => ({ id })),
           padding: fitPaddingForIntent(intent),
           duration,
-          minZoom,
+          minZoom: fitMinZoom,
           maxZoom,
         });
       });
     },
-    [fitView, maxZoom, minZoom, nodeIdsForIntent],
+    [fitView, getFocusState, maxZoom, minZoom, nodeIdsForIntent],
   );
 
   const scheduleIntent = useCallback(

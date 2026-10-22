@@ -4,7 +4,37 @@
     "id": "apex-bee-streams",
     "name": "Apex Bee — EventStore streams",
     "version": 3,
-    "modelVersion": 1
+    "modelVersion": 1,
+    "narrativeOrder": [
+      "evt-device-imported",
+      "evt-device-registered",
+      "evt-device-revoked",
+      "evt-entitlement-imported",
+      "evt-trial-started",
+      "evt-subscription-activated",
+      "evt-subscription-updated",
+      "evt-subscription-cancelled",
+      "evt-payment-initiated",
+      "evt-payment-imported",
+      "evt-manual-payment",
+      "evt-payment-confirmed",
+      "evt-exam-submitted",
+      "evt-interview-started",
+      "evt-interview-scored",
+      "evt-interview-advanced",
+      "evt-interview-finished",
+      "evt-interview-abandoned",
+      "evt-group-created",
+      "evt-join-code-set",
+      "evt-member-joined",
+      "evt-member-left",
+      "evt-group-settings-updated",
+      "evt-joint-opened",
+      "evt-joint-closed",
+      "evt-flag-imported",
+      "evt-flag-raised",
+      "evt-flag-resolved"
+    ]
   },
   "swimlanes": [
     {

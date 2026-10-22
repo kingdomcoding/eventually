@@ -8,7 +8,7 @@ import {
   MARGIN_X,
   yForLaneRow,
   type SwimlaneRow,
-} from "./layout.js";
+} from "./layoutMetrics.js";
 
 const COL_GAP = 300;
 /** Match `STREAM_STACK_GAP` in layout.ts (vertical OR stacks). */

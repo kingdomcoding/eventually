@@ -1,4 +1,6 @@
+import { normalizeDiagramMode } from "./diagramMode.js";
 import type { SessionSnapshot, ViewportState } from "./sessionTypes.js";
+import type { DiagramMode } from "./sessionTypes.js";
 export type { SessionSnapshot, ViewportState, SessionBoard } from "./sessionTypes.js";
 
 export type SessionState = {
@@ -26,9 +28,11 @@ export type SessionAction =
   | { type: "VIEWPORT"; viewport: ViewportState }
   | { type: "WORKFLOW_SET_FROM"; eventId: string | null }
   | { type: "WORKFLOW_SET_TO"; eventId: string | null }
-  | { type: "WORKFLOW_CLEAR" };
+  | { type: "WORKFLOW_CLEAR" }
+  | { type: "SET_DIAGRAM_MODE"; mode: DiagramMode };
 
 const emptyBoard = (): SessionSnapshot["board"] => ({
+  diagramMode: "swimlane",
   showAll: false,
   openEventIds: [],
   openOrder: [],
@@ -45,14 +49,30 @@ function boardFromSnapshot(snapshot: SessionSnapshot): SessionSnapshot["board"] 
   const raw = snapshot.board;
   const focusAnchorId =
     raw.focusAnchorId ?? raw.focusEventId ?? null;
+  let diagramMode = normalizeDiagramMode(raw.diagramMode);
+  let showAll = raw.showAll ?? false;
+  if (showAll && raw.diagramMode == null) {
+    diagramMode = "timeline";
+    showAll = false;
+  }
   return {
-    showAll: raw.showAll,
+    diagramMode,
+    showAll,
     openEventIds: [...raw.openEventIds],
     openOrder: [...raw.openOrder],
     focusAnchorId,
     workflowFromEventId: raw.workflowFromEventId ?? null,
     workflowToEventId: raw.workflowToEventId ?? null,
   };
+}
+
+function cameraForDiagramMode(board: SessionSnapshot["board"]): CameraIntent {
+  if (board.diagramMode === "timeline") {
+    return board.focusAnchorId ?
+        { type: "FrameFocusClosure", anchorId: board.focusAnchorId }
+      : { type: "FrameFullBoard" };
+  }
+  return { type: "FrameStoryTimeline" };
 }
 
 function nextBoardOnEventClick(board: SessionSnapshot["board"], eventId: string): SessionSnapshot["board"] {
@@ -163,6 +183,9 @@ function cameraOnHydrate(board: SessionSnapshot["board"], hasViewport: boolean):
   if (board.workflowFromEventId && board.workflowToEventId) {
     return cameraForWorkflowEndpoints(board);
   }
+  if (board.diagramMode === "timeline") {
+    return cameraForDiagramMode(board);
+  }
   if (hasViewport) return { type: "Preserve" };
   if (board.focusAnchorId) {
     return { type: "FrameFocusClosure", anchorId: board.focusAnchorId };
@@ -263,6 +286,19 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
         },
         camera: { type: "FrameStoryTimeline" },
       };
+    case "SET_DIAGRAM_MODE": {
+      const board = {
+        ...state.board,
+        diagramMode: action.mode,
+        showAll: false,
+        workflowFromEventId: action.mode === "timeline" ? null : state.board.workflowFromEventId,
+        workflowToEventId: action.mode === "timeline" ? null : state.board.workflowToEventId,
+      };
+      return {
+        state: { ...state, board },
+        camera: { type: "Preserve" },
+      };
+    }
     default:
       return { state, camera: { type: "Preserve" } };
   }
@@ -271,6 +307,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
 export function sessionToFocusState(session: SessionState, hoverExpandedId: string | null) {
   const { board } = session;
   return {
+    diagramMode: board.diagramMode,
     showAll: board.showAll,
     focusAnchorId: board.focusAnchorId,
     openEventIds: new Set(board.openEventIds),
@@ -281,6 +318,7 @@ export function sessionToFocusState(session: SessionState, hoverExpandedId: stri
 
 export function boardToPersistable(board: SessionSnapshot["board"]): SessionSnapshot["board"] {
   return {
+    diagramMode: board.diagramMode,
     showAll: board.showAll,
     openEventIds: [...board.openEventIds],
     openOrder: [...board.openOrder],

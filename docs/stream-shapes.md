@@ -18,6 +18,10 @@ Each **streams** swimlane can carry optional `streamShape` metadata beside `stre
 
 Workflow routing uses then + loop-back + pool clique reachability on **one stream only**.
 
+## Timeline mode
+
+**Stream** layout uses this metadata (multi-row EventStore swimlanes). **Timeline** mode uses `meta.narrativeOrder` (event id list) for a single horizontal story spine with commands, views, and screens in their bands; stream spine edges are hidden. Future scoped timelines can reuse the same order + a subset filter without changing layout APIs.
+
 ## Sample
 
 See `samples/apex-bee.json` for Apex Bee’s eight stream kinds with OR-starts, payment tines, interview spine, study-group chain, and flag OR-starts.

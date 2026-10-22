@@ -1,6 +1,7 @@
 import type { BlueprintDocument, SwimlaneBand } from "@schema/document.js";
-import type { SwimlaneRow } from "./layout.js";
-import { BAND_GAP } from "./layout.js";
+import type { SwimlaneRow } from "./layoutMetrics.js";
+import { BAND_GAP } from "./layoutMetrics.js";
+import { TIMELINE_EVENTS_ROW_ID } from "./timelineLayout.js";
 import { flowYToScreenY, type FlowViewport, type GutterDivider } from "./gutterLayout.js";
 import { BAND_LABEL } from "./swimlaneLabels.js";
 import { GUTTER_COLLAPSIBLE_BANDS } from "./swimlaneLabels.js";
@@ -93,8 +94,25 @@ export function bandHeaderEmphasis(em: GutterEmphasis): GutterEmphasis {
   return em;
 }
 
+function gutterExpanded(state: FocusState): boolean {
+  return state.diagramMode === "timeline";
+}
+
 export function isPureStory(state: FocusState): boolean {
-  return !state.showAll && state.openEventIds.size === 0 && !state.focusAnchorId;
+  return (
+    state.diagramMode === "swimlane" &&
+    state.openEventIds.size === 0 &&
+    !state.focusAnchorId
+  );
+}
+
+function maxTierForEvents(doc: BlueprintDocument, state: FocusState, previewPhase: PreviewPhase): DisplayTier {
+  let best: DisplayTier = "hidden";
+  for (const n of doc.nodes) {
+    if (n.type !== "event") continue;
+    best = maxTier(best, nodeDisplayTier(doc, n.id, state, previewPhase));
+  }
+  return best;
 }
 
 export function bandBlocksFromRows(rows: SwimlaneRow[]): BandBlock[] {
@@ -120,20 +138,25 @@ export function bandBlocksFromRows(rows: SwimlaneRow[]): BandBlock[] {
 
 export function computeGutterEmphasis(
   doc: BlueprintDocument,
+  rows: SwimlaneRow[],
   state: FocusState,
   previewPhase: PreviewPhase,
 ): GutterEmphasisState {
   const byLaneId = new Map<string, GutterEmphasis>();
   const byLaneTier = new Map<string, DisplayTier>();
+  const expanded = gutterExpanded(state);
 
-  for (const lane of doc.swimlanes) {
-    const tier = maxTierInLane(doc, lane.id, state, previewPhase);
-    byLaneTier.set(lane.id, tier);
+  for (const row of rows) {
+    const tier =
+      row.id === TIMELINE_EVENTS_ROW_ID ?
+        maxTierForEvents(doc, state, previewPhase)
+      : maxTierInLane(doc, row.id, state, previewPhase);
+    byLaneTier.set(row.id, tier);
 
-    if (GUTTER_COLLAPSIBLE_BANDS.has(lane.band)) {
-      byLaneId.set(lane.id, emphasisForCollapsibleBand(tier, state.showAll));
+    if (GUTTER_COLLAPSIBLE_BANDS.has(row.band)) {
+      byLaneId.set(row.id, emphasisForCollapsibleBand(tier, expanded));
     } else {
-      byLaneId.set(lane.id, emphasisForEventsBand(tier, state.showAll));
+      byLaneId.set(row.id, emphasisForEventsBand(tier, expanded));
     }
   }
 

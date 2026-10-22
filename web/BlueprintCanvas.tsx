@@ -13,7 +13,8 @@ import sample from "../samples/apex-bee.json";
 import { BlueprintDocumentSchema } from "@schema/document.js";
 import { indexForCanvas } from "@schema/canvas-index.js";
 import { buildEdges } from "./edges";
-import { computeLayout } from "./layout";
+import { computeLayout, type DiagramMode } from "./layout";
+import { useLayoutMorph } from "./useLayoutMorph";
 import { StickyNode, type StickyData } from "./StickyNode";
 import { computeGutterEmphasis } from "./gutterEmphasis";
 import { SwimlaneGutter } from "./SwimlaneGutter";
@@ -58,42 +59,49 @@ function tierStrokeOpacity(
 const WORKFLOW_ROUTE_STROKE = "#5b9bf5";
 
 function BoardControls({
-  showAll,
-  storyMode,
-  onShowAll,
-  onEventsOnly,
+  diagramMode,
+  onSetDiagramMode,
 }: {
-  showAll: boolean;
-  storyMode: boolean;
-  onShowAll: () => void;
-  onEventsOnly: () => void;
+  diagramMode: DiagramMode;
+  onSetDiagramMode: (mode: DiagramMode) => void;
 }) {
   return (
     <div className="app-header-actions">
-      <div className="view-mode-toggle" role="group" aria-label="Diagram view">
+      <div className="view-mode-toggle" role="group" aria-label="Diagram layout">
         <button
           type="button"
-          className={storyMode ? "is-active" : ""}
-          aria-pressed={storyMode}
-          onClick={onEventsOnly}
+          className={diagramMode === "swimlane" ? "is-active" : ""}
+          aria-pressed={diagramMode === "swimlane"}
+          onClick={() => onSetDiagramMode("swimlane")}
         >
-          Story
+          Swimlanes
         </button>
         <button
           type="button"
-          className={showAll ? "is-active" : ""}
-          aria-pressed={showAll}
-          onClick={onShowAll}
+          className={diagramMode === "timeline" ? "is-active" : ""}
+          aria-pressed={diagramMode === "timeline"}
+          onClick={() => onSetDiagramMode("timeline")}
         >
-          Show all
+          Timeline
         </button>
       </div>
       <div className="view-mode-hint">
-        Hover preview · click event to open &amp; focus · click command/view/screen to focus · dbl-click canvas or S
-        toggles story / show all
+        {diagramMode === "swimlane"
+          ? "EventStore streams · hover preview · click to open detail · M or dbl-click canvas switches to Timeline"
+          : "One story spine with commands, views, and screens · M or dbl-click canvas switches to Swimlanes"}
       </div>
     </div>
   );
+}
+
+function cameraIntentForLayoutMode(
+  mode: DiagramMode,
+  focusAnchorId: string | null,
+): import("./sessionState").CameraIntent {
+  if (focusAnchorId) {
+    return { type: "FrameFocusClosure", anchorId: focusAnchorId };
+  }
+  return mode === "timeline" ? { type: "FrameFullBoard" } : { type: "FrameStoryTimeline" };
 }
 
 function formatFocusLabel(doc: ReturnType<typeof BlueprintDocumentSchema.parse>, anchorId: string): string {
@@ -109,7 +117,19 @@ export function BlueprintCanvas() {
   const viewportRestored = useRef(false);
 
   const doc = useMemo(() => BlueprintDocumentSchema.parse(sample), []);
-  const layout = useMemo(() => computeLayout(doc), [doc]);
+
+  const cameraIntentRef = useRef<((intent: import("./sessionState").CameraIntent) => void) | null>(null);
+  const { session, dispatch, setViewport } = useBlueprintSession((intent) => {
+    cameraIntentRef.current?.(intent);
+  });
+
+  const diagramMode = session.board.diagramMode;
+  const layout = useMemo(() => computeLayout(doc, diagramMode), [doc, diagramMode]);
+  const { positions: displayPositions, isMorphing } = useLayoutMorph(layout.positions);
+  const layoutCameraPending = useRef(false);
+  const diagramModeRef = useRef(diagramMode);
+  diagramModeRef.current = diagramMode;
+
   const [flowViewport, setFlowViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [gutterHeight, setGutterHeight] = useState(600);
   const gutterRef = useRef<HTMLDivElement>(null);
@@ -127,6 +147,7 @@ export function BlueprintCanvas() {
       sessionToFocusState(
         {
           board: {
+            diagramMode: "swimlane",
             showAll: false,
             openEventIds: [],
             openOrder: [],
@@ -142,10 +163,27 @@ export function BlueprintCanvas() {
     getPreviewPhase: () => previewPhaseRef.current,
   });
 
-  const { session, dispatch, setViewport } = useBlueprintSession(handleCameraIntent);
+  useEffect(() => {
+    cameraIntentRef.current = handleCameraIntent;
+  }, [handleCameraIntent]);
 
-  const { showAll, openEventIds, focusAnchorId, workflowFromEventId, workflowToEventId } = {
-    showAll: session.board.showAll,
+  useEffect(() => {
+    if (isMorphing) return;
+    if (!layoutCameraPending.current) return;
+    layoutCameraPending.current = false;
+    const intent = cameraIntentForLayoutMode(
+      diagramModeRef.current,
+      session.board.focusAnchorId,
+    );
+    handleCameraIntent(intent);
+    if (diagramModeRef.current === "timeline") {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => handleCameraIntent(intent));
+      });
+    }
+  }, [isMorphing, handleCameraIntent, session.board.focusAnchorId]);
+
+  const { openEventIds, focusAnchorId, workflowFromEventId, workflowToEventId } = {
     openEventIds: new Set(session.board.openEventIds),
     focusAnchorId: session.board.focusAnchorId,
     workflowFromEventId: session.board.workflowFromEventId,
@@ -167,9 +205,9 @@ export function BlueprintCanvas() {
         .filter((n) => n.type === "event")
         .map((n) => ({
           id: n.id,
-          position: layout.positions.get(n.id) ?? { x: 0, y: 0 },
+          position: displayPositions.get(n.id) ?? { x: 0, y: 0 },
         })),
-    [doc.nodes, layout.positions],
+    [doc.nodes, displayPositions],
   );
 
   const {
@@ -178,7 +216,7 @@ export function BlueprintCanvas() {
     onPaneMouseMove,
     onPaneMouseLeave,
     clearHover,
-  } = useHoverPreview(doc, layout.positions, eventTargets, hoverPreviewEnabled);
+  } = useHoverPreview(doc, displayPositions, eventTargets, hoverPreviewEnabled);
 
   previewPhaseRef.current = previewPhase;
 
@@ -199,12 +237,16 @@ export function BlueprintCanvas() {
     if (session.board.workflowFromEventId && session.board.workflowToEventId) {
       return;
     }
+    if (session.board.diagramMode === "timeline") {
+      return;
+    }
     if (session.viewport) {
       restoreViewport(session.viewport);
     }
   }, [
     session.hydrated,
     session.viewport,
+    session.board.diagramMode,
     session.board.workflowFromEventId,
     session.board.workflowToEventId,
     restoreViewport,
@@ -221,50 +263,50 @@ export function BlueprintCanvas() {
     return () => ro.disconnect();
   }, []);
 
+  const gutterExpanded = diagramMode === "timeline";
+
   const gutterEmphasis = useMemo(
-    () => computeGutterEmphasis(doc, focusState, previewPhase),
-    [doc, focusState, previewPhase],
+    () => computeGutterEmphasis(doc, layout.swimlaneRows, focusState, previewPhase),
+    [doc, layout.swimlaneRows, focusState, previewPhase],
   );
 
   const onFlowMove = useCallback((_: unknown, viewport: Viewport) => {
     setFlowViewport(viewport);
   }, []);
 
-  const resetToEventsOnly = useCallback(() => {
+  const toggleDiagramMode = useCallback(() => {
     clearHover();
-    dispatch({ type: "RESET_STORY" });
-  }, [clearHover, dispatch]);
+    const next: DiagramMode = diagramMode === "swimlane" ? "timeline" : "swimlane";
+    diagramModeRef.current = next;
+    layoutCameraPending.current = true;
+    dispatch({ type: "SET_DIAGRAM_MODE", mode: next });
+  }, [clearHover, dispatch, diagramMode]);
 
-  const toggleStoryOrShowAll = useCallback(() => {
-    clearHover();
-    dispatch({ type: "TOGGLE_STORY_OR_SHOW_ALL" });
-  }, [clearHover, dispatch]);
-
-  const storyMode = !showAll && openEventIds.size === 0 && !focusAnchorId;
   const holdFocus = focusHold(focusState);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "s" && event.key !== "S") return;
+      if (event.key !== "m" && event.key !== "M") return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
       if (!target) return;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
       event.preventDefault();
-      toggleStoryOrShowAll();
+      toggleDiagramMode();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleStoryOrShowAll]);
+  }, [toggleDiagramMode]);
 
-  const onCanvasDoubleClick = useCallback(
+  const onBoardDoubleClick = useCallback(
     (event: React.MouseEvent) => {
       const el = event.target as HTMLElement;
       if (el.closest(".react-flow__node")) return;
-      if (!el.closest(".react-flow__pane")) return;
-      toggleStoryOrShowAll();
+      if (el.closest(".react-flow__controls")) return;
+      if (el.closest(".react-flow__minimap")) return;
+      toggleDiagramMode();
     },
-    [toggleStoryOrShowAll],
+    [toggleDiagramMode],
   );
 
   const handleMoveEnd = useCallback(() => {
@@ -276,7 +318,7 @@ export function BlueprintCanvas() {
   const baseStickyNodes: Node[] = useMemo(
     () =>
       doc.nodes.map((n) => {
-        const p = layout.positions.get(n.id) ?? { x: 0, y: 0 };
+        const p = displayPositions.get(n.id) ?? { x: 0, y: 0 };
         let subtitle: string | undefined;
         if (n.type === "command" && n.rejections.length)
           subtitle = `${n.rejections.length} rejection(s)`;
@@ -298,12 +340,15 @@ export function BlueprintCanvas() {
           } satisfies StickyData,
         };
       }),
-    [doc.nodes, layout.positions, focusAnchorId, workflowPath],
+    [doc.nodes, displayPositions, focusAnchorId, workflowPath],
   );
 
   const allEdges = useMemo(
-    () => buildEdges(doc, layout.positions),
-    [doc, layout.positions],
+    () =>
+      buildEdges(doc, displayPositions, {
+        includeStreamEdges: diagramMode === "swimlane",
+      }),
+    [doc, displayPositions, diagramMode],
   );
 
   const nodes = useMemo(() => {
@@ -382,19 +427,27 @@ export function BlueprintCanvas() {
   });
 
   const showLegend =
-    showAll || openEventIds.size > 0 || hoverExpandedId !== null || focusAnchorId !== null;
+    diagramMode === "timeline" ||
+    openEventIds.size > 0 ||
+    hoverExpandedId !== null ||
+    focusAnchorId !== null;
 
-  const metaLine = workflowPath.status === "valid"
-    ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
-    : showAll
-    ? "Full board — all nodes and edges"
-    : focusAnchorId
-      ? holdFocus
-        ? `Focus — ${formatFocusLabel(doc, focusAnchorId)} · story`
-        : `Focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
-      : openEventIds.size > 0
-        ? `${openEventIds.size} open slice(s) · click an event to focus`
-        : "Story — streams (one row per EventStore pattern) · hover for preview · click an event for detail";
+  const metaLine =
+    diagramMode === "timeline"
+      ? focusAnchorId
+        ? `Timeline · focus — ${formatFocusLabel(doc, focusAnchorId)}`
+        : openEventIds.size > 0
+          ? `Timeline · ${openEventIds.size} open slice(s)`
+          : "Timeline — full event-model stack on one story spine"
+      : workflowPath.status === "valid"
+        ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
+        : focusAnchorId
+          ? holdFocus
+            ? `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)}`
+            : `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
+          : openEventIds.size > 0
+            ? `Swimlanes · ${openEventIds.size} open slice(s) · click an event to focus`
+            : "Swimlanes — one row per EventStore pattern · hover for preview · click an event for detail";
 
   return (
     <>
@@ -404,13 +457,14 @@ export function BlueprintCanvas() {
           <div className="meta">{metaLine}</div>
         </div>
         <BoardControls
-          showAll={showAll}
-          storyMode={storyMode}
-          onShowAll={() => {
+          diagramMode={diagramMode}
+          onSetDiagramMode={(mode) => {
+            if (mode === diagramMode) return;
             clearHover();
-            dispatch({ type: "SHOW_ALL_ON" });
+            diagramModeRef.current = mode;
+            layoutCameraPending.current = true;
+            dispatch({ type: "SET_DIAGRAM_MODE", mode });
           }}
-          onEventsOnly={resetToEventsOnly}
         />
         {showLegend ? (
           <div className="legend">
@@ -429,23 +483,30 @@ export function BlueprintCanvas() {
           </div>
         ) : null}
       </header>
-      <WorkflowRouteBar
-        options={workflowEventOptions}
-        fromEventId={workflowFromEventId}
-        toEventId={workflowToEventId}
-        path={workflowPath}
-        onSetFrom={(eventId) => dispatch({ type: "WORKFLOW_SET_FROM", eventId })}
-        onSetTo={(eventId) => dispatch({ type: "WORKFLOW_SET_TO", eventId })}
-        onClear={() => dispatch({ type: "WORKFLOW_CLEAR" })}
-      />
-      <div className="canvas-wrap" ref={canvasRef} onDoubleClick={onCanvasDoubleClick}>
+      <div className="app-body">
+        {diagramMode === "swimlane" ? (
+          <WorkflowRouteBar
+            options={workflowEventOptions}
+            fromEventId={workflowFromEventId}
+            toEventId={workflowToEventId}
+            path={workflowPath}
+            onSetFrom={(eventId) => dispatch({ type: "WORKFLOW_SET_FROM", eventId })}
+            onSetTo={(eventId) => dispatch({ type: "WORKFLOW_SET_TO", eventId })}
+            onClear={() => dispatch({ type: "WORKFLOW_CLEAR" })}
+          />
+        ) : null}
+        <div
+          className={`canvas-wrap canvas-wrap--${diagramMode}`}
+          ref={canvasRef}
+          onDoubleClick={onBoardDoubleClick}
+        >
         <div ref={gutterRef} className="lane-gutter-host">
           <SwimlaneGutter
             rows={layout.swimlaneRows}
             viewport={flowViewport}
             gutterHeight={gutterHeight}
             emphasis={gutterEmphasis}
-            showAll={showAll}
+            showAll={gutterExpanded}
           />
         </div>
         <div className="react-flow-host">
@@ -489,6 +550,7 @@ export function BlueprintCanvas() {
               zoomable
             />
           </ReactFlow>
+        </div>
         </div>
       </div>
     </>

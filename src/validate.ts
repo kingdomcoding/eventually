@@ -91,6 +91,35 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
     }
   }
 
+  if (doc.meta.narrativeOrder?.length) {
+    const seen = new Set<string>();
+    for (const id of doc.meta.narrativeOrder) {
+      const node = byId.get(id);
+      if (!node) {
+        issues.push({
+          code: "narrative_order_unknown",
+          message: `meta.narrativeOrder references missing node "${id}"`,
+        });
+        continue;
+      }
+      if (node.type !== "event") {
+        issues.push({
+          code: "narrative_order_not_event",
+          message: `meta.narrativeOrder must list event nodes only ("${id}" is ${node.type})`,
+          nodeId: id,
+        });
+      }
+      if (seen.has(id)) {
+        issues.push({
+          code: "narrative_order_duplicate",
+          message: `meta.narrativeOrder lists "${id}" more than once`,
+          nodeId: id,
+        });
+      }
+      seen.add(id);
+    }
+  }
+
   for (const lane of doc.swimlanes) {
     const shape = lane.streamShape;
     if (!shape) continue;

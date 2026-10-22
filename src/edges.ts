@@ -32,5 +32,6 @@ export const ALLOWED_EDGES: Record<
   updates: { fromTypes: ["event"], toTypes: ["view"] },
   rendersOn: { fromTypes: ["view"], toTypes: ["screen"] },
   ordersBefore: { fromTypes: ["event"], toTypes: ["event"] },
+  loopsBack: { fromTypes: ["event"], toTypes: ["event"] },
   translatesTo: { fromTypes: ["integration"], toTypes: ["event"] },
 };
