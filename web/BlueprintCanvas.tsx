@@ -37,11 +37,14 @@ import {
 } from "./viewMode";
 import { WorkflowRouteBar } from "./WorkflowRouteBar";
 import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
+import { swimlaneViewportLooksStale } from "./swimlaneStoryCamera";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
-/** Below this, a persisted swimlane viewport is treated as stale (e.g. after timeline full-board fit). */
-const SWIMLANE_VIEWPORT_ZOOM_FLOOR = 0.25;
+const getFlowPaneSizeFromCanvas = (root: HTMLDivElement | null) => {
+  const host = root?.querySelector(".react-flow__renderer") as HTMLElement | null;
+  return { width: host?.clientWidth ?? 800, height: host?.clientHeight ?? 600 };
+};
 
 function prefersReducedMotion(): boolean {
   return (
@@ -172,11 +175,17 @@ export function BlueprintCanvas() {
   const focusStateRef = useRef<ReturnType<typeof sessionToFocusState> | null>(null);
   const previewPhaseRef = useRef<PreviewPhase>("idle");
 
+  const getFlowPaneSize = useCallback(
+    () => getFlowPaneSizeFromCanvas(canvasRef.current),
+    [],
+  );
+
   const { handleCameraIntent, restoreViewport, onMoveEnd } = useCameraController({
     doc,
     layout,
     minZoom: MIN_ZOOM,
     maxZoom: MAX_ZOOM,
+    getFlowPaneSize,
     getFocusState: () =>
       focusStateRef.current ??
       sessionToFocusState(
@@ -314,7 +323,17 @@ export function BlueprintCanvas() {
       return;
     }
     if (session.viewport) {
-      if (session.viewport.zoom < SWIMLANE_VIEWPORT_ZOOM_FLOOR) {
+      const { height } = getFlowPaneSizeFromCanvas(canvasRef.current);
+      if (
+        swimlaneViewportLooksStale(
+          session.viewport.zoom,
+          layout,
+          doc,
+          height,
+          MIN_ZOOM,
+          MAX_ZOOM,
+        )
+      ) {
         handleCameraIntent({ type: "FrameStoryTimeline" });
       } else {
         restoreViewport(session.viewport);
@@ -326,6 +345,8 @@ export function BlueprintCanvas() {
     session.board.diagramMode,
     session.board.workflowFromEventId,
     session.board.workflowToEventId,
+    doc,
+    layout,
     restoreViewport,
     handleCameraIntent,
   ]);

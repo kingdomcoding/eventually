@@ -12,6 +12,7 @@ import type { LayoutResult } from "./layout.js";
 import type { CameraIntent } from "./sessionState.js";
 import type { FocusState, PreviewPhase } from "./viewMode.js";
 import { visibleDiagramNodeIds } from "./viewMode.js";
+import { swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
 
 const FOCUS_DEBOUNCE_MS = 80;
 const DEFAULT_FIT_MS = 280;
@@ -55,8 +56,10 @@ export function useCameraController(options: {
   maxZoom: number;
   getFocusState: () => FocusState;
   getPreviewPhase: () => PreviewPhase;
+  getFlowPaneSize: () => { width: number; height: number };
 }) {
-  const { doc, minZoom, maxZoom, getFocusState, getPreviewPhase } = options;
+  const { doc, layout, minZoom, maxZoom, getFocusState, getPreviewPhase, getFlowPaneSize } =
+    options;
   const { fitView, setViewport, getViewport } = useReactFlow();
   const ignoreViewportUntil = useRef(0);
   const focusDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,21 +100,51 @@ export function useCameraController(options: {
         prefersReducedMotion() ? 0 : (options.duration ?? DEFAULT_FIT_MS);
       ignoreViewportUntil.current = Date.now() + duration + 120;
 
-      const timelineFullBoard =
-        intent.type === "FrameFullBoard" && getFocusState().diagramMode === "timeline";
-      const fitMinZoom = timelineFullBoard ? Math.min(minZoom, 0.1) : minZoom;
+      const padding = fitPaddingForIntent(intent);
+      const swimlaneStory =
+        intent.type === "FrameStoryTimeline" &&
+        getFocusState().diagramMode === "swimlane";
 
       requestAnimationFrame(() => {
+        if (swimlaneStory) {
+          const { width, height } = getFlowPaneSize();
+          const vp = swimlaneStoryViewport(
+            layout,
+            doc,
+            width,
+            height,
+            padding,
+            minZoom,
+            maxZoom,
+          );
+          setViewport(vp, { duration });
+          return;
+        }
+
+        const timelineFullBoard =
+          intent.type === "FrameFullBoard" && getFocusState().diagramMode === "timeline";
+        const fitMinZoom = timelineFullBoard ? Math.min(minZoom, 0.1) : minZoom;
+
         void fitView({
           nodes: ids.map((id) => ({ id })),
-          padding: fitPaddingForIntent(intent),
+          padding,
           duration,
           minZoom: fitMinZoom,
           maxZoom,
         });
       });
     },
-    [fitView, getFocusState, maxZoom, minZoom, nodeIdsForIntent],
+    [
+      doc,
+      fitView,
+      getFlowPaneSize,
+      getFocusState,
+      layout,
+      maxZoom,
+      minZoom,
+      nodeIdsForIntent,
+      setViewport,
+    ],
   );
 
   const scheduleIntent = useCallback(
