@@ -97,9 +97,9 @@ export function useCameraController(options: {
         prefersReducedMotion() ? 0 : (options.duration ?? DEFAULT_FIT_MS);
       ignoreViewportUntil.current = Date.now() + duration + 120;
 
-      const timelineSpine =
+      const timelineFullBoard =
         intent.type === "FrameFullBoard" && getFocusState().diagramMode === "timeline";
-      const fitMinZoom = timelineSpine ? Math.min(minZoom, 0.1) : minZoom;
+      const fitMinZoom = timelineFullBoard ? Math.min(minZoom, 0.1) : minZoom;
 
       requestAnimationFrame(() => {
         void fitView({

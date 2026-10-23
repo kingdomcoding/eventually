@@ -38,9 +38,10 @@ import {
 import { WorkflowRouteBar } from "./WorkflowRouteBar";
 import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
 
-/** Match timeline full-board fitView floor so manual pinch does not snap after mode switch. */
-const MIN_ZOOM = 0.1;
+const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
+/** Below this, a persisted swimlane viewport is treated as stale (e.g. after timeline full-board fit). */
+const SWIMLANE_VIEWPORT_ZOOM_FLOOR = 0.25;
 
 function prefersReducedMotion(): boolean {
   return (
@@ -205,7 +206,10 @@ export function BlueprintCanvas() {
     if (!layoutCameraPending.current) return;
 
     if (isMorphing) {
-      if (!morphSyncCameraFired.current) {
+      if (
+        !morphSyncCameraFired.current &&
+        diagramModeRef.current === "timeline"
+      ) {
         morphSyncCameraFired.current = true;
         handleCameraIntent(cameraIntentForLayoutMorph(session.board.focusAnchorId), {
           duration: prefersReducedMotion() ? 0 : LAYOUT_MORPH_MS,
@@ -230,7 +234,9 @@ export function BlueprintCanvas() {
       return;
     }
 
-    if (!morphSyncCameraFired.current) {
+    if (mode === "swimlane") {
+      handleCameraIntent(cameraIntentForPostMorph(mode, anchorId));
+    } else if (!morphSyncCameraFired.current) {
       handleCameraIntent(cameraIntentForPostMorph(mode, anchorId));
     }
   }, [isMorphing, handleCameraIntent, session.board.focusAnchorId]);
@@ -308,7 +314,11 @@ export function BlueprintCanvas() {
       return;
     }
     if (session.viewport) {
-      restoreViewport(session.viewport);
+      if (session.viewport.zoom < SWIMLANE_VIEWPORT_ZOOM_FLOOR) {
+        handleCameraIntent({ type: "FrameStoryTimeline" });
+      } else {
+        restoreViewport(session.viewport);
+      }
     }
   }, [
     session.hydrated,
@@ -317,6 +327,7 @@ export function BlueprintCanvas() {
     session.board.workflowFromEventId,
     session.board.workflowToEventId,
     restoreViewport,
+    handleCameraIntent,
   ]);
 
   useEffect(() => {
