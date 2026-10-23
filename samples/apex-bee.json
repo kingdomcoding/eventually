@@ -4,7 +4,7 @@
     "id": "apex-bee-streams",
     "name": "Apex Bee — EventStore streams + timeline stack",
     "version": 3,
-    "modelVersion": 4,
+    "modelVersion": 5,
     "narrativeOrder": [
       "evt-device-imported",
       "evt-device-registered",
@@ -60,18 +60,6 @@
       "name": "Commands",
       "band": "commandView",
       "order": 0
-    },
-    {
-      "id": "lane-int-gateways",
-      "name": "Payment gateways",
-      "band": "integration",
-      "order": 0
-    },
-    {
-      "id": "lane-int-ops",
-      "name": "Ops & migration",
-      "band": "integration",
-      "order": 1
     },
     {
       "id": "stream-device",
@@ -1280,36 +1268,6 @@
       "actor": "Ops",
       "bindings": [],
       "notes": "IEx: seed groups, imports, group settings rename"
-    },
-    {
-      "type": "integration",
-      "id": "int-paystack",
-      "name": "Paystack",
-      "swimlaneId": "lane-int-gateways",
-      "sliceId": "slice-billing",
-      "pattern": "translation",
-      "description": "Card checkout, subscription webhooks, charge.success reconciliation",
-      "externalIn": "Paystack API + webhooks"
-    },
-    {
-      "type": "integration",
-      "id": "int-monnify",
-      "name": "Monnify",
-      "swimlaneId": "lane-int-gateways",
-      "sliceId": "slice-billing",
-      "pattern": "translation",
-      "description": "Hosted checkout, token renewals, payment webhooks",
-      "externalIn": "Monnify API + webhooks"
-    },
-    {
-      "type": "integration",
-      "id": "int-eventstore-migration",
-      "name": "EventStore migration",
-      "swimlaneId": "lane-int-ops",
-      "sliceId": "slice-ops",
-      "pattern": "translation",
-      "description": "Replay/backfill Import* commands when migrating historical streams",
-      "externalIn": "Legacy event payloads"
     }
   ],
   "edges": [

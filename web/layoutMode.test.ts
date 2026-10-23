@@ -52,7 +52,7 @@ test("hotel timeline lays out command and view with events", () => {
 
 test("apex timeline includes commands and screens from enriched model", () => {
   const layout = computeLayout(apex, "timeline");
-  assert.equal(apex.meta.modelVersion, 4);
+  assert.equal(apex.meta.modelVersion, 5);
   assert.ok(apex.nodes.some((n) => n.type === "command"));
   assert.ok(apex.nodes.some((n) => n.type === "screen"));
   assert.ok(layout.positions.has("cmd-register-device"));

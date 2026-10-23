@@ -4,7 +4,6 @@ export const BAND_LABEL: Record<SwimlaneBand, string> = {
   ui: "Users",
   commandView: "Commands · views",
   events: "Streams",
-  integration: "Integration",
 };
 
 export const BAND_LABEL_TIMELINE: Record<SwimlaneBand, string> = {
@@ -22,4 +21,4 @@ export function swimlaneRowLabelNamed(band: SwimlaneBand): boolean {
 }
 
 /** Bands whose gutter rows hide when no canvas nodes are visible in that lane. */
-export const GUTTER_COLLAPSIBLE_BANDS = new Set<SwimlaneBand>(["ui", "commandView", "integration"]);
+export const GUTTER_COLLAPSIBLE_BANDS = new Set<SwimlaneBand>(["ui", "commandView"]);

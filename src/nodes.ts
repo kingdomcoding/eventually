@@ -64,21 +64,11 @@ export const ScreenNodeSchema = NodeBase.extend({
   wireframeRef: z.string().optional(),
 });
 
-/** Pattern 3: external → domain event. Pattern 4: automation processor (todo list). */
-export const IntegrationNodeSchema = NodeBase.extend({
-  type: z.literal("integration"),
-  pattern: z.enum(["translation", "automation"]),
-  description: z.string().min(1),
-  externalIn: z.string().optional(),
-  domainEventOut: z.string().optional(),
-});
-
 export const BlueprintNodeSchema = z.discriminatedUnion("type", [
   EventNodeSchema,
   CommandNodeSchema,
   ViewNodeSchema,
   ScreenNodeSchema,
-  IntegrationNodeSchema,
 ]);
 
 export type BlueprintNode = z.infer<typeof BlueprintNodeSchema>;

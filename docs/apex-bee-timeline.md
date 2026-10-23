@@ -1,6 +1,6 @@
 # Apex Bee timeline model (`samples/apex-bee.json`)
 
-`modelVersion` **4** adds **commands**, **screens**, and **integration** nodes for Timeline mode, mapped from the Apex Bee app (`~/batcave/apex-bee`).
+`modelVersion` **5** adds **commands** and **screens** for Timeline mode, mapped from the Apex Bee app (`~/batcave/apex-bee`).
 
 ## Bands
 
@@ -9,7 +9,8 @@
 | **ui** | Web, Mobile app, Ops & system | LiveView routes and mobile API surfaces |
 | **commandView** | Commands | Ash command resources (`RegisterDevice`, `SubmitExam`, …) |
 | **events** | Eight EventStore streams (unchanged) | `*V1` domain events |
-| **integration** | Payment gateways, Ops & migration | Paystack, Monnify, EventStore migration (documentation nodes) |
+
+Timeline stack ends at the **events** spine (no band below).
 
 ## Edges
 

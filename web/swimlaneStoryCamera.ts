@@ -4,7 +4,10 @@ import { eventTimelineNodeIds } from "./graphIndex.js";
 import type { LayoutResult } from "./layout.js";
 
 /** Keep stream labels legible; pan vertically for long multi-stream boards. */
-export const SWIMLANE_STORY_MIN_ZOOM = 0.58;
+export const SWIMLANE_STORY_MIN_ZOOM = 0.52;
+
+/** Extra inset for swimlane story framing (gutter + first column breathing room). */
+export const SWIMLANE_STORY_PADDING = 0.14;
 
 /**
  * Swimlane "story" framing: fill the viewport with the EventStore stream band

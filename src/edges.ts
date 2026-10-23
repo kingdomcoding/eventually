@@ -8,7 +8,6 @@ export const EdgeRelationSchema = z.enum([
   "rendersOn",
   "ordersBefore",
   "loopsBack",
-  "translatesTo",
 ]);
 
 export type EdgeRelation = z.infer<typeof EdgeRelationSchema>;
@@ -33,5 +32,4 @@ export const ALLOWED_EDGES: Record<
   rendersOn: { fromTypes: ["view"], toTypes: ["screen"] },
   ordersBefore: { fromTypes: ["event"], toTypes: ["event"] },
   loopsBack: { fromTypes: ["event"], toTypes: ["event"] },
-  translatesTo: { fromTypes: ["integration"], toTypes: ["event"] },
 };

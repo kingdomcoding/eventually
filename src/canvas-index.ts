@@ -8,13 +8,13 @@ import type { BlueprintNode } from "./nodes.js";
 export type CanvasLayer = {
   swimlaneId: string;
   swimlaneName: string;
-  band: "ui" | "commandView" | "events" | "integration";
+  band: "ui" | "commandView" | "events";
   nodes: BlueprintNode[];
 };
 
 export type CanvasIndex = {
   meta: BlueprintDocument["meta"];
-  /** UI band: screens (and integrations in ui if any). */
+  /** UI band: screens. */
   uiLayers: CanvasLayer[];
   /** Timeline: events, commands, views ordered by timelineIndex where applicable. */
   timelineEvents: BlueprintNode[];

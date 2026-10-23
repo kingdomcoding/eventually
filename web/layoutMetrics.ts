@@ -17,7 +17,7 @@ export type NodePosition = { x: number; y: number };
 export type SwimlaneRow = {
   id: string;
   name: string;
-  band: "ui" | "commandView" | "events" | "integration";
+  band: "ui" | "commandView" | "events";
   order: number;
   y: number;
   yLine: number;

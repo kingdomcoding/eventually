@@ -9,7 +9,6 @@ const REL_STROKE: Record<string, string> = {
   rendersOn: "#9eb4cc",
   ordersBefore: "#f5c542",
   loopsBack: "#b88cff",
-  translatesTo: "#ff9f6b",
 };
 
 function handlesFor(rel: string): { sourceHandle: string; targetHandle: string } {

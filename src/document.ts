@@ -4,7 +4,7 @@ import { BlueprintNodeSchema } from "./nodes.js";
 import { StreamShapeSchema } from "./streamShape.js";
 
 /** Canvas bands; ui/commandView may have multiple swimlanes; events band holds one row per stream. */
-export const SwimlaneBandSchema = z.enum(["ui", "commandView", "events", "integration"]);
+export const SwimlaneBandSchema = z.enum(["ui", "commandView", "events"]);
 
 export type SwimlaneBand = z.infer<typeof SwimlaneBandSchema>;
 
@@ -47,5 +47,4 @@ export const NODE_BAND: Record<string, SwimlaneBand> = {
   command: "commandView",
   view: "commandView",
   event: "events",
-  integration: "integration",
 };

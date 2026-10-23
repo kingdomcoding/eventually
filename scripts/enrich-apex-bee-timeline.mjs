@@ -17,8 +17,6 @@ const EXTRA_SWIMLANES = [
   { id: "lane-mobile", name: "Mobile app", band: "ui", order: 1 },
   { id: "lane-ops-ui", name: "Ops & system", band: "ui", order: 2 },
   { id: "lane-writes", name: "Commands", band: "commandView", order: 0 },
-  { id: "lane-int-gateways", name: "Payment gateways", band: "integration", order: 0 },
-  { id: "lane-int-ops", name: "Ops & migration", band: "integration", order: 1 },
 ];
 
 /** eventId → { cmdId, cmdName, slice } */
@@ -332,33 +330,6 @@ const ISSUES = [
   ["scr-int-ops", "cmd-update-group-settings"],
 ];
 
-const INTEGRATIONS = [
-  {
-    id: "int-paystack",
-    name: "Paystack",
-    lane: "lane-int-gateways",
-    slice: "slice-billing",
-    description: "Card checkout, subscription webhooks, charge.success reconciliation",
-    externalIn: "Paystack API + webhooks",
-  },
-  {
-    id: "int-monnify",
-    name: "Monnify",
-    lane: "lane-int-gateways",
-    slice: "slice-billing",
-    description: "Hosted checkout, token renewals, payment webhooks",
-    externalIn: "Monnify API + webhooks",
-  },
-  {
-    id: "int-eventstore-migration",
-    name: "EventStore migration",
-    lane: "lane-int-ops",
-    slice: "slice-ops",
-    description: "Replay/backfill Import* commands when migrating historical streams",
-    externalIn: "Legacy event payloads",
-  },
-];
-
 const events = doc.nodes.filter((n) => n.type === "event");
 for (const e of events) {
   if (EVENT_SLICE[e.id]) e.sliceId = EVENT_SLICE[e.id];
@@ -392,17 +363,6 @@ const screens = SCREENS.map((s) => {
   return node;
 });
 
-const integrations = INTEGRATIONS.map((i) => ({
-  type: "integration",
-  id: i.id,
-  name: i.name,
-  swimlaneId: i.lane,
-  sliceId: i.slice,
-  pattern: "translation",
-  description: i.description,
-  externalIn: i.externalIn,
-}));
-
 const emEdges = [];
 let ei = 0;
 for (const [from, to] of ISSUES) {
@@ -419,13 +379,13 @@ for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
 
 const streamEdges = doc.edges.filter((e) => e.rel === "ordersBefore" || e.rel === "loopsBack");
 
-doc.meta.modelVersion = 4;
+doc.meta.modelVersion = 5;
 doc.meta.name = "Apex Bee — EventStore streams + timeline stack";
 doc.swimlanes = [...EXTRA_SWIMLANES, ...doc.swimlanes.filter((s) => s.band === "events")];
-doc.nodes = [...events, ...commands, ...screens, ...integrations];
+doc.nodes = [...events, ...commands, ...screens];
 doc.edges = [...streamEdges, ...emEdges];
 
 writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
 console.log(
-  `Updated ${path}: ${commands.length} commands, ${screens.length} screens, ${integrations.length} integrations, ${emEdges.length} EM edges`,
+  `Updated ${path}: ${commands.length} commands, ${screens.length} screens, ${emEdges.length} EM edges`,
 );

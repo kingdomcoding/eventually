@@ -20,7 +20,7 @@ import {
 
 const TIMELINE_EVENTS_ROW_ID = "__timeline_events__";
 
-const BAND_ORDER = ["ui", "commandView", "events", "integration"] as const;
+const BAND_ORDER = ["ui", "commandView", "events"] as const;
 
 function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
   const rows: SwimlaneRow[] = [];
@@ -264,9 +264,6 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
       }
       const si = screenStoryIndex(doc, n, events);
       placeScreen(n.id, xAtStory(si), n.swimlaneId, laneTop);
-    }
-    if (n.type === "integration") {
-      positions.set(n.id, { x: xAtStory(0), y: yMidPlaced });
     }
   }
 

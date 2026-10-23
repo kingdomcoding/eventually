@@ -309,7 +309,6 @@ body,
   --band-ui-accent: #6b829c;
   --band-commandView-accent: #4a8fd4;
   --band-events-accent: #c9a020;
-  --band-integration-accent: #8b7fd4;
 
   position: relative;
   height: 100%;
@@ -409,11 +408,6 @@ body,
 .lane-gutter-row.lane-gutter-band--events {
   border-left-color: color-mix(in srgb, var(--band-events-accent) 55%, transparent);
   background: linear-gradient(90deg, color-mix(in srgb, var(--band-events-accent) 7%, transparent), transparent 72%);
-}
-
-.lane-gutter-row.lane-gutter-band--integration {
-  border-left-color: color-mix(in srgb, var(--band-integration-accent) 55%, transparent);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--band-integration-accent) 7%, transparent), transparent 72%);
 }
 
 .lane-gutter-band-chip {

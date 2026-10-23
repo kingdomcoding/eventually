@@ -12,7 +12,7 @@ import type { LayoutResult } from "./layout.js";
 import type { CameraIntent } from "./sessionState.js";
 import type { FocusState, PreviewPhase } from "./viewMode.js";
 import { visibleDiagramNodeIds } from "./viewMode.js";
-import { swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
+import { SWIMLANE_STORY_PADDING, swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
 
 const FOCUS_DEBOUNCE_MS = 80;
 const DEFAULT_FIT_MS = 280;
@@ -113,7 +113,7 @@ export function useCameraController(options: {
             doc,
             width,
             height,
-            padding,
+            SWIMLANE_STORY_PADDING,
             minZoom,
             maxZoom,
           );

@@ -5,7 +5,7 @@ Minimal **Event Modeling** document schema (TypeScript + Zod). JSON on disk; no 
 ## Why this shape (canvas next)
 
 - **`nodes[]` + `edges[]`** — canvas renders graph directly; layout lives on nodes as optional `layout: { x, y }`.
-- **`swimlanes[]`** with **`band`**: `ui` | `timeline` | `integration` — rows for storyboard vs timeline.
+- **`swimlanes[]`** with **`band`**: `ui` | `commandView` | `events` — storyboard and timeline rows.
 - **Events** carry **`timelineIndex`** — default horizontal ordering before manual layout.
 - **`indexForCanvas(doc)`** — grouped read model for the first UI (see `src/canvas-index.ts`).
 

@@ -54,7 +54,7 @@ function laneHeightForStreamShape(shape?: StreamShape): number {
   return (depth - 1) * STREAM_STACK_GAP + NODE_H + STREAM_ROW_PAD * 2;
 }
 
-const BAND_ORDER = ["ui", "commandView", "events", "integration"] as const;
+const BAND_ORDER = ["ui", "commandView", "events"] as const;
 
 function columnContentWidth(
   doc: BlueprintDocument,
@@ -335,9 +335,6 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
         continue;
       }
       placeScreen(n.id, timelineXForSlice(n.sliceId), n.swimlaneId, laneTop);
-    }
-    if (n.type === "integration") {
-      positions.set(n.id, { x: defaultSliceX(0), y: yMidPlaced });
     }
   }
 
