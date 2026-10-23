@@ -3,6 +3,9 @@ import type { Viewport } from "@xyflow/react";
 import { eventTimelineNodeIds } from "./graphIndex.js";
 import type { LayoutResult } from "./layout.js";
 
+/** Keep stream labels legible; pan vertically for long multi-stream boards. */
+export const SWIMLANE_STORY_MIN_ZOOM = 0.58;
+
 /**
  * Swimlane "story" framing: fill the viewport with the EventStore stream band
  * (vertical) and anchor on the left spine (horizontal). Does not zoom out to
@@ -33,7 +36,11 @@ export function swimlaneStoryViewport(
   if (!Number.isFinite(minX)) minX = 0;
 
   const bandH = Math.max(1, bandBottom - bandTop);
-  const zoom = Math.min(maxZoom, Math.max(minZoom, innerH / bandH));
+  const zoomFromHeight = innerH / bandH;
+  const zoom = Math.min(
+    maxZoom,
+    Math.max(minZoom, SWIMLANE_STORY_MIN_ZOOM, zoomFromHeight),
+  );
 
   const screenPadX = paneWidth * pad;
   const screenPadY = paneHeight * pad;
