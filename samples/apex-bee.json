@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "meta": {
     "id": "apex-bee-streams",
-    "name": "Apex Bee — EventStore streams",
+    "name": "Apex Bee — EventStore streams + timeline stack",
     "version": 3,
-    "modelVersion": 1,
+    "modelVersion": 4,
     "narrativeOrder": [
       "evt-device-imported",
       "evt-device-registered",
@@ -38,16 +38,60 @@
   },
   "swimlanes": [
     {
+      "id": "lane-web",
+      "name": "Web",
+      "band": "ui",
+      "order": 0
+    },
+    {
+      "id": "lane-mobile",
+      "name": "Mobile app",
+      "band": "ui",
+      "order": 1
+    },
+    {
+      "id": "lane-ops-ui",
+      "name": "Ops & system",
+      "band": "ui",
+      "order": 2
+    },
+    {
+      "id": "lane-writes",
+      "name": "Commands",
+      "band": "commandView",
+      "order": 0
+    },
+    {
+      "id": "lane-int-gateways",
+      "name": "Payment gateways",
+      "band": "integration",
+      "order": 0
+    },
+    {
+      "id": "lane-int-ops",
+      "name": "Ops & migration",
+      "band": "integration",
+      "order": 1
+    },
+    {
       "id": "stream-device",
       "name": "Device",
       "band": "events",
       "order": 0,
       "streamPattern": "device-{deviceToken}",
       "streamShape": {
-        "entryOneOf": ["evt-device-imported", "evt-device-registered"],
+        "entryOneOf": [
+          "evt-device-imported",
+          "evt-device-registered"
+        ],
         "layoutColumns": [
-          ["evt-device-imported", "evt-device-registered"],
-          ["evt-device-revoked"]
+          [
+            "evt-device-imported",
+            "evt-device-registered"
+          ],
+          [
+            "evt-device-revoked"
+          ]
         ]
       }
     },
@@ -58,12 +102,24 @@
       "order": 1,
       "streamPattern": "subscription-{userId}",
       "streamShape": {
-        "entryOneOf": ["evt-entitlement-imported", "evt-trial-started"],
+        "entryOneOf": [
+          "evt-entitlement-imported",
+          "evt-trial-started"
+        ],
         "layoutColumns": [
-          ["evt-entitlement-imported", "evt-trial-started"],
-          ["evt-subscription-activated"],
-          ["evt-subscription-updated"],
-          ["evt-subscription-cancelled"]
+          [
+            "evt-entitlement-imported",
+            "evt-trial-started"
+          ],
+          [
+            "evt-subscription-activated"
+          ],
+          [
+            "evt-subscription-updated"
+          ],
+          [
+            "evt-subscription-cancelled"
+          ]
         ]
       }
     },
@@ -80,8 +136,14 @@
           "evt-manual-payment"
         ],
         "layoutColumns": [
-          ["evt-payment-initiated", "evt-payment-imported", "evt-manual-payment"],
-          ["evt-payment-confirmed"]
+          [
+            "evt-payment-initiated",
+            "evt-payment-imported",
+            "evt-manual-payment"
+          ],
+          [
+            "evt-payment-confirmed"
+          ]
         ]
       }
     },
@@ -99,12 +161,24 @@
       "order": 4,
       "streamPattern": "interview-{sessionId}",
       "streamShape": {
-        "exitOneOf": ["evt-interview-finished", "evt-interview-abandoned"],
+        "exitOneOf": [
+          "evt-interview-finished",
+          "evt-interview-abandoned"
+        ],
         "layoutColumns": [
-          ["evt-interview-started"],
-          ["evt-interview-scored"],
-          ["evt-interview-advanced"],
-          ["evt-interview-finished", "evt-interview-abandoned"]
+          [
+            "evt-interview-started"
+          ],
+          [
+            "evt-interview-scored"
+          ],
+          [
+            "evt-interview-advanced"
+          ],
+          [
+            "evt-interview-finished",
+            "evt-interview-abandoned"
+          ]
         ]
       }
     },
@@ -129,10 +203,18 @@
       "order": 7,
       "streamPattern": "flag-{flagId}",
       "streamShape": {
-        "entryOneOf": ["evt-flag-imported", "evt-flag-raised"],
+        "entryOneOf": [
+          "evt-flag-imported",
+          "evt-flag-raised"
+        ],
         "layoutColumns": [
-          ["evt-flag-imported", "evt-flag-raised"],
-          ["evt-flag-resolved"]
+          [
+            "evt-flag-imported",
+            "evt-flag-raised"
+          ],
+          [
+            "evt-flag-resolved"
+          ]
         ]
       }
     }
@@ -143,7 +225,7 @@
       "id": "evt-device-imported",
       "name": "DeviceImportedV1",
       "swimlaneId": "stream-device",
-      "sliceId": "stream-device",
+      "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
         {
@@ -161,7 +243,7 @@
       "id": "evt-device-registered",
       "name": "DeviceRegisteredV1",
       "swimlaneId": "stream-device",
-      "sliceId": "stream-device",
+      "sliceId": "slice-auth",
       "timelineIndex": 1,
       "payload": [
         {
@@ -179,7 +261,7 @@
       "id": "evt-device-revoked",
       "name": "DeviceRevokedV1",
       "swimlaneId": "stream-device",
-      "sliceId": "stream-device",
+      "sliceId": "slice-auth",
       "timelineIndex": 2,
       "payload": [
         {
@@ -197,7 +279,7 @@
       "id": "evt-entitlement-imported",
       "name": "EntitlementImportedV1",
       "swimlaneId": "stream-subscription",
-      "sliceId": "stream-subscription",
+      "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
         {
@@ -215,7 +297,7 @@
       "id": "evt-trial-started",
       "name": "TrialStartedV1",
       "swimlaneId": "stream-subscription",
-      "sliceId": "stream-subscription",
+      "sliceId": "slice-auth",
       "timelineIndex": 1,
       "payload": [
         {
@@ -233,7 +315,7 @@
       "id": "evt-subscription-activated",
       "name": "SubscriptionActivatedV1",
       "swimlaneId": "stream-subscription",
-      "sliceId": "stream-subscription",
+      "sliceId": "slice-billing",
       "timelineIndex": 2,
       "payload": [
         {
@@ -251,7 +333,7 @@
       "id": "evt-subscription-updated",
       "name": "SubscriptionUpdatedV1",
       "swimlaneId": "stream-subscription",
-      "sliceId": "stream-subscription",
+      "sliceId": "slice-billing",
       "timelineIndex": 3,
       "payload": [
         {
@@ -269,7 +351,7 @@
       "id": "evt-subscription-cancelled",
       "name": "SubscriptionCancelledV1",
       "swimlaneId": "stream-subscription",
-      "sliceId": "stream-subscription",
+      "sliceId": "slice-billing",
       "timelineIndex": 4,
       "payload": [
         {
@@ -287,7 +369,7 @@
       "id": "evt-payment-initiated",
       "name": "PaymentInitiatedV1",
       "swimlaneId": "stream-payment",
-      "sliceId": "stream-payment",
+      "sliceId": "slice-billing",
       "timelineIndex": 0,
       "payload": [
         {
@@ -305,7 +387,7 @@
       "id": "evt-payment-confirmed",
       "name": "PaymentConfirmedV1",
       "swimlaneId": "stream-payment",
-      "sliceId": "stream-payment",
+      "sliceId": "slice-billing",
       "timelineIndex": 1,
       "payload": [
         {
@@ -323,7 +405,7 @@
       "id": "evt-payment-imported",
       "name": "PaymentImportedV1",
       "swimlaneId": "stream-payment",
-      "sliceId": "stream-payment",
+      "sliceId": "slice-billing",
       "timelineIndex": 2,
       "payload": [
         {
@@ -341,7 +423,7 @@
       "id": "evt-manual-payment",
       "name": "ManualPaymentRecordedV1",
       "swimlaneId": "stream-payment",
-      "sliceId": "stream-payment",
+      "sliceId": "slice-billing",
       "timelineIndex": 3,
       "payload": [
         {
@@ -359,7 +441,7 @@
       "id": "evt-exam-submitted",
       "name": "ExamSubmittedV1",
       "swimlaneId": "stream-attempt",
-      "sliceId": "stream-attempt",
+      "sliceId": "slice-exam",
       "timelineIndex": 0,
       "payload": [
         {
@@ -377,7 +459,7 @@
       "id": "evt-interview-started",
       "name": "InterviewSessionStartedV1",
       "swimlaneId": "stream-interview",
-      "sliceId": "stream-interview",
+      "sliceId": "slice-interview",
       "timelineIndex": 0,
       "payload": [
         {
@@ -395,7 +477,7 @@
       "id": "evt-interview-scored",
       "name": "InterviewAnswerScoredV1",
       "swimlaneId": "stream-interview",
-      "sliceId": "stream-interview",
+      "sliceId": "slice-interview",
       "timelineIndex": 1,
       "payload": [
         {
@@ -413,7 +495,7 @@
       "id": "evt-interview-advanced",
       "name": "InterviewQuestionAdvancedV1",
       "swimlaneId": "stream-interview",
-      "sliceId": "stream-interview",
+      "sliceId": "slice-interview",
       "timelineIndex": 2,
       "payload": [
         {
@@ -431,7 +513,7 @@
       "id": "evt-interview-finished",
       "name": "InterviewSessionFinishedV1",
       "swimlaneId": "stream-interview",
-      "sliceId": "stream-interview",
+      "sliceId": "slice-interview",
       "timelineIndex": 3,
       "payload": [
         {
@@ -449,7 +531,7 @@
       "id": "evt-interview-abandoned",
       "name": "InterviewSessionAbandonedV1",
       "swimlaneId": "stream-interview",
-      "sliceId": "stream-interview",
+      "sliceId": "slice-interview",
       "timelineIndex": 4,
       "payload": [
         {
@@ -467,7 +549,7 @@
       "id": "evt-group-created",
       "name": "GroupCreatedV1",
       "swimlaneId": "stream-group",
-      "sliceId": "stream-group",
+      "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
         {
@@ -485,7 +567,7 @@
       "id": "evt-join-code-set",
       "name": "JoinCodeSetV1",
       "swimlaneId": "stream-group",
-      "sliceId": "stream-group",
+      "sliceId": "slice-groups",
       "timelineIndex": 1,
       "payload": [
         {
@@ -503,7 +585,7 @@
       "id": "evt-group-settings-updated",
       "name": "GroupSettingsUpdatedV1",
       "swimlaneId": "stream-group",
-      "sliceId": "stream-group",
+      "sliceId": "slice-ops",
       "timelineIndex": 4,
       "payload": [
         {
@@ -521,7 +603,7 @@
       "id": "evt-member-joined",
       "name": "MemberJoinedV1",
       "swimlaneId": "stream-group",
-      "sliceId": "stream-group",
+      "sliceId": "slice-groups",
       "timelineIndex": 2,
       "payload": [
         {
@@ -539,7 +621,7 @@
       "id": "evt-member-left",
       "name": "MemberLeftV1",
       "swimlaneId": "stream-group",
-      "sliceId": "stream-group",
+      "sliceId": "slice-groups",
       "timelineIndex": 3,
       "payload": [
         {
@@ -557,7 +639,7 @@
       "id": "evt-joint-opened",
       "name": "JointExamOpenedV1",
       "swimlaneId": "stream-joint",
-      "sliceId": "stream-joint",
+      "sliceId": "slice-groups",
       "timelineIndex": 0,
       "payload": [
         {
@@ -575,7 +657,7 @@
       "id": "evt-joint-closed",
       "name": "JointExamClosedV1",
       "swimlaneId": "stream-joint",
-      "sliceId": "stream-joint",
+      "sliceId": "slice-groups",
       "timelineIndex": 1,
       "payload": [
         {
@@ -593,7 +675,7 @@
       "id": "evt-flag-imported",
       "name": "FlagImportedV1",
       "swimlaneId": "stream-flag",
-      "sliceId": "stream-flag",
+      "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
         {
@@ -611,7 +693,7 @@
       "id": "evt-flag-raised",
       "name": "FlagRaisedV1",
       "swimlaneId": "stream-flag",
-      "sliceId": "stream-flag",
+      "sliceId": "slice-trust",
       "timelineIndex": 1,
       "payload": [
         {
@@ -629,7 +711,7 @@
       "id": "evt-flag-resolved",
       "name": "FlagResolvedV1",
       "swimlaneId": "stream-flag",
-      "sliceId": "stream-flag",
+      "sliceId": "slice-trust",
       "timelineIndex": 2,
       "payload": [
         {
@@ -641,6 +723,593 @@
           }
         }
       ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-import-device",
+      "name": "ImportDevice",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-ops",
+      "input": [],
+      "produces": [
+        "evt-device-imported"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-register-device",
+      "name": "RegisterDevice",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-auth",
+      "input": [],
+      "produces": [
+        "evt-device-registered"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-revoke-device",
+      "name": "RevokeDevice",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-auth",
+      "input": [],
+      "produces": [
+        "evt-device-revoked"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-import-entitlement",
+      "name": "ImportEntitlement",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-ops",
+      "input": [],
+      "produces": [
+        "evt-entitlement-imported"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-start-trial",
+      "name": "StartTrial",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-auth",
+      "input": [],
+      "produces": [
+        "evt-trial-started"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-activate-subscription",
+      "name": "ActivateSubscription",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-subscription-activated"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-update-subscription",
+      "name": "UpdateSubscription",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-subscription-updated"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-cancel-subscription",
+      "name": "CancelSubscription",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-subscription-cancelled"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-initiate-payment",
+      "name": "InitiatePayment",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-payment-initiated"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-confirm-payment",
+      "name": "ConfirmPayment",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-payment-confirmed"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-import-payment",
+      "name": "ImportPayment",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-payment-imported"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-record-manual-payment",
+      "name": "RecordManualPayment",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-manual-payment"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-submit-exam",
+      "name": "SubmitExam",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-exam",
+      "input": [],
+      "produces": [
+        "evt-exam-submitted"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-start-interview-session",
+      "name": "StartSession",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-interview",
+      "input": [],
+      "produces": [
+        "evt-interview-started"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-score-interview-answer",
+      "name": "ScoreAnswer",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-interview",
+      "input": [],
+      "produces": [
+        "evt-interview-scored"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-advance-interview-question",
+      "name": "AdvanceQuestion",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-interview",
+      "input": [],
+      "produces": [
+        "evt-interview-advanced"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-finish-interview-session",
+      "name": "FinishSession",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-interview",
+      "input": [],
+      "produces": [
+        "evt-interview-finished"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-abandon-interview-session",
+      "name": "AbandonSession",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-interview",
+      "input": [],
+      "produces": [
+        "evt-interview-abandoned"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-create-group",
+      "name": "CreateGroup",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-ops",
+      "input": [],
+      "produces": [
+        "evt-group-created"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-set-join-code",
+      "name": "SetJoinCode",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-groups",
+      "input": [],
+      "produces": [
+        "evt-join-code-set"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-join-group",
+      "name": "JoinGroup",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-groups",
+      "input": [],
+      "produces": [
+        "evt-member-joined"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-leave-group",
+      "name": "LeaveGroup",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-groups",
+      "input": [],
+      "produces": [
+        "evt-member-left"
+      ],
+      "rejections": [],
+      "notes": "Command exists; no product UI wired yet (LeaveGroup)"
+    },
+    {
+      "type": "command",
+      "id": "cmd-update-group-settings",
+      "name": "UpdateGroupSettings",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-ops",
+      "input": [],
+      "produces": [
+        "evt-group-settings-updated"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-open-joint-exam",
+      "name": "OpenJointExam",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-groups",
+      "input": [],
+      "produces": [
+        "evt-joint-opened"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-close-joint-exam",
+      "name": "CloseJointExam",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-groups",
+      "input": [],
+      "produces": [
+        "evt-joint-closed"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-import-flag",
+      "name": "ImportFlag",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-ops",
+      "input": [],
+      "produces": [
+        "evt-flag-imported"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-raise-flag",
+      "name": "RaiseFlag",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-trust",
+      "input": [],
+      "produces": [
+        "evt-flag-raised"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "command",
+      "id": "cmd-resolve-flag",
+      "name": "ResolveFlag",
+      "swimlaneId": "lane-writes",
+      "sliceId": "slice-trust",
+      "input": [],
+      "produces": [
+        "evt-flag-resolved"
+      ],
+      "rejections": []
+    },
+    {
+      "type": "screen",
+      "id": "scr-auth-google",
+      "name": "Google sign-in",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-auth",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "GET /auth/google/callback — AuthController"
+    },
+    {
+      "type": "screen",
+      "id": "scr-mobile-auth",
+      "name": "Mobile sign-in",
+      "swimlaneId": "lane-mobile",
+      "sliceId": "slice-auth",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "POST /api/mobile/v1/auth/google|guest"
+    },
+    {
+      "type": "screen",
+      "id": "scr-settings-devices",
+      "name": "Settings · devices",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-auth",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "SettingsLive revoke_device"
+    },
+    {
+      "type": "screen",
+      "id": "scr-mobile-settings",
+      "name": "Mobile · devices",
+      "swimlaneId": "lane-mobile",
+      "sliceId": "slice-auth",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "DELETE /api/mobile/v1/devices/:token"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-device-cap",
+      "name": "Device cap (system)",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-auth",
+      "actor": "System",
+      "bindings": [],
+      "notes": "Accounts.register_device revokes 3rd device"
+    },
+    {
+      "type": "screen",
+      "id": "scr-subscription",
+      "name": "Subscription checkout",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-billing",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/settings/subscription — start_checkout, cancel"
+    },
+    {
+      "type": "screen",
+      "id": "scr-pay-return",
+      "name": "Payment return",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-billing",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/pay/return — activate_after_checkout"
+    },
+    {
+      "type": "screen",
+      "id": "scr-mobile-billing",
+      "name": "Mobile billing",
+      "swimlaneId": "lane-mobile",
+      "sliceId": "slice-billing",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/api/mobile/v1/billing/*"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-webhook-paystack",
+      "name": "Paystack webhooks",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-billing",
+      "actor": "Paystack",
+      "bindings": [],
+      "notes": "POST /webhooks/paystack"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-webhook-monnify",
+      "name": "Monnify webhooks",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-billing",
+      "actor": "Monnify",
+      "bindings": [],
+      "notes": "POST /webhooks/monnify"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-billing-reconcile",
+      "name": "Billing reconcile",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-billing",
+      "actor": "System",
+      "bindings": [],
+      "notes": "Billing.reconcile_reference / return URL"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-billing-poll",
+      "name": "Billing poll & renew",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-billing",
+      "actor": "System",
+      "bindings": [],
+      "notes": "Billing.poll_all, Monnify renewals"
+    },
+    {
+      "type": "screen",
+      "id": "scr-sys-grant-manual",
+      "name": "Manual payment (ops)",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-billing",
+      "actor": "Ops",
+      "bindings": [],
+      "notes": "Billing.grant_manual — IEx/scripts"
+    },
+    {
+      "type": "screen",
+      "id": "scr-me-hub",
+      "name": "Practice hub",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-exam",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/me/:slug — exam submit, flag during drill/exam"
+    },
+    {
+      "type": "screen",
+      "id": "scr-joint-exam",
+      "name": "Joint exam",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-exam",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/study-groups/:id/take/:sid"
+    },
+    {
+      "type": "screen",
+      "id": "scr-mobile-practice",
+      "name": "Mobile practice",
+      "swimlaneId": "lane-mobile",
+      "sliceId": "slice-exam",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "POST /api/mobile/v1/exams/submit, /questions/flag"
+    },
+    {
+      "type": "screen",
+      "id": "scr-interview",
+      "name": "Interview drill",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-interview",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/interview — MeLive interview flow (web only)"
+    },
+    {
+      "type": "screen",
+      "id": "scr-study-group",
+      "name": "Study group admin",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-groups",
+      "actor": "Group host",
+      "bindings": [],
+      "notes": "/study-groups/:id — invite, joint exam open/close"
+    },
+    {
+      "type": "screen",
+      "id": "scr-join-group",
+      "name": "Join study group",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-groups",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/study-groups/join/:code"
+    },
+    {
+      "type": "screen",
+      "id": "scr-mobile-study-groups",
+      "name": "Mobile study groups",
+      "swimlaneId": "lane-mobile",
+      "sliceId": "slice-groups",
+      "actor": "Learner",
+      "bindings": [],
+      "notes": "/api/mobile/v1/study-groups/*"
+    },
+    {
+      "type": "screen",
+      "id": "scr-settings-admin",
+      "name": "Settings · admin",
+      "swimlaneId": "lane-web",
+      "sliceId": "slice-trust",
+      "actor": "Admin",
+      "bindings": [],
+      "notes": "/settings/admin — resolve_flag"
+    },
+    {
+      "type": "screen",
+      "id": "scr-int-ops",
+      "name": "Ops & migration",
+      "swimlaneId": "lane-ops-ui",
+      "sliceId": "slice-ops",
+      "actor": "Ops",
+      "bindings": [],
+      "notes": "IEx: seed groups, imports, group settings rename"
+    },
+    {
+      "type": "integration",
+      "id": "int-paystack",
+      "name": "Paystack",
+      "swimlaneId": "lane-int-gateways",
+      "sliceId": "slice-billing",
+      "pattern": "translation",
+      "description": "Card checkout, subscription webhooks, charge.success reconciliation",
+      "externalIn": "Paystack API + webhooks"
+    },
+    {
+      "type": "integration",
+      "id": "int-monnify",
+      "name": "Monnify",
+      "swimlaneId": "lane-int-gateways",
+      "sliceId": "slice-billing",
+      "pattern": "translation",
+      "description": "Hosted checkout, token renewals, payment webhooks",
+      "externalIn": "Monnify API + webhooks"
+    },
+    {
+      "type": "integration",
+      "id": "int-eventstore-migration",
+      "name": "EventStore migration",
+      "swimlaneId": "lane-int-ops",
+      "sliceId": "slice-ops",
+      "pattern": "translation",
+      "description": "Replay/backfill Import* commands when migrating historical streams",
+      "externalIn": "Legacy event payloads"
     }
   ],
   "edges": [
@@ -751,6 +1420,510 @@
       "from": "evt-flag-raised",
       "to": "evt-flag-resolved",
       "rel": "ordersBefore"
+    },
+    {
+      "id": "em-issue-0",
+      "from": "scr-auth-google",
+      "to": "cmd-register-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-1",
+      "from": "scr-auth-google",
+      "to": "cmd-start-trial",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-2",
+      "from": "scr-mobile-auth",
+      "to": "cmd-register-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-3",
+      "from": "scr-mobile-auth",
+      "to": "cmd-start-trial",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-4",
+      "from": "scr-settings-devices",
+      "to": "cmd-revoke-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-5",
+      "from": "scr-mobile-settings",
+      "to": "cmd-revoke-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-6",
+      "from": "scr-sys-device-cap",
+      "to": "cmd-revoke-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-7",
+      "from": "scr-subscription",
+      "to": "cmd-initiate-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-8",
+      "from": "scr-subscription",
+      "to": "cmd-cancel-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-9",
+      "from": "scr-mobile-billing",
+      "to": "cmd-initiate-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-10",
+      "from": "scr-mobile-billing",
+      "to": "cmd-cancel-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-11",
+      "from": "scr-mobile-billing",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-12",
+      "from": "scr-pay-return",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-13",
+      "from": "scr-sys-webhook-paystack",
+      "to": "cmd-confirm-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-14",
+      "from": "scr-sys-webhook-paystack",
+      "to": "cmd-import-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-15",
+      "from": "scr-sys-webhook-paystack",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-16",
+      "from": "scr-sys-webhook-paystack",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-17",
+      "from": "scr-sys-webhook-paystack",
+      "to": "cmd-cancel-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-18",
+      "from": "scr-sys-webhook-monnify",
+      "to": "cmd-confirm-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-19",
+      "from": "scr-sys-webhook-monnify",
+      "to": "cmd-import-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-20",
+      "from": "scr-sys-webhook-monnify",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-21",
+      "from": "scr-sys-webhook-monnify",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-22",
+      "from": "scr-sys-webhook-monnify",
+      "to": "cmd-cancel-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-23",
+      "from": "scr-sys-billing-reconcile",
+      "to": "cmd-confirm-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-24",
+      "from": "scr-sys-billing-reconcile",
+      "to": "cmd-import-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-25",
+      "from": "scr-sys-billing-reconcile",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-26",
+      "from": "scr-sys-billing-poll",
+      "to": "cmd-initiate-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-27",
+      "from": "scr-sys-billing-poll",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-28",
+      "from": "scr-sys-grant-manual",
+      "to": "cmd-record-manual-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-29",
+      "from": "scr-sys-grant-manual",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-30",
+      "from": "scr-sys-grant-manual",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-31",
+      "from": "scr-me-hub",
+      "to": "cmd-submit-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-32",
+      "from": "scr-me-hub",
+      "to": "cmd-raise-flag",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-33",
+      "from": "scr-joint-exam",
+      "to": "cmd-submit-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-34",
+      "from": "scr-mobile-practice",
+      "to": "cmd-submit-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-35",
+      "from": "scr-mobile-practice",
+      "to": "cmd-raise-flag",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-36",
+      "from": "scr-interview",
+      "to": "cmd-start-interview-session",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-37",
+      "from": "scr-interview",
+      "to": "cmd-score-interview-answer",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-38",
+      "from": "scr-interview",
+      "to": "cmd-advance-interview-question",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-39",
+      "from": "scr-interview",
+      "to": "cmd-finish-interview-session",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-40",
+      "from": "scr-interview",
+      "to": "cmd-abandon-interview-session",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-41",
+      "from": "scr-study-group",
+      "to": "cmd-set-join-code",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-42",
+      "from": "scr-study-group",
+      "to": "cmd-open-joint-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-43",
+      "from": "scr-study-group",
+      "to": "cmd-close-joint-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-44",
+      "from": "scr-join-group",
+      "to": "cmd-join-group",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-45",
+      "from": "scr-mobile-study-groups",
+      "to": "cmd-join-group",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-46",
+      "from": "scr-mobile-study-groups",
+      "to": "cmd-set-join-code",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-47",
+      "from": "scr-mobile-study-groups",
+      "to": "cmd-open-joint-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-48",
+      "from": "scr-mobile-study-groups",
+      "to": "cmd-close-joint-exam",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-49",
+      "from": "scr-settings-admin",
+      "to": "cmd-resolve-flag",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-50",
+      "from": "scr-int-ops",
+      "to": "cmd-import-device",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-51",
+      "from": "scr-int-ops",
+      "to": "cmd-import-entitlement",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-52",
+      "from": "scr-int-ops",
+      "to": "cmd-import-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-53",
+      "from": "scr-int-ops",
+      "to": "cmd-import-flag",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-54",
+      "from": "scr-int-ops",
+      "to": "cmd-create-group",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-55",
+      "from": "scr-int-ops",
+      "to": "cmd-update-group-settings",
+      "rel": "issues"
+    },
+    {
+      "id": "em-produce-cmd-import-device",
+      "from": "cmd-import-device",
+      "to": "evt-device-imported",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-register-device",
+      "from": "cmd-register-device",
+      "to": "evt-device-registered",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-revoke-device",
+      "from": "cmd-revoke-device",
+      "to": "evt-device-revoked",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-import-entitlement",
+      "from": "cmd-import-entitlement",
+      "to": "evt-entitlement-imported",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-start-trial",
+      "from": "cmd-start-trial",
+      "to": "evt-trial-started",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-activate-subscription",
+      "from": "cmd-activate-subscription",
+      "to": "evt-subscription-activated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-update-subscription",
+      "from": "cmd-update-subscription",
+      "to": "evt-subscription-updated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-cancel-subscription",
+      "from": "cmd-cancel-subscription",
+      "to": "evt-subscription-cancelled",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-initiate-payment",
+      "from": "cmd-initiate-payment",
+      "to": "evt-payment-initiated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-confirm-payment",
+      "from": "cmd-confirm-payment",
+      "to": "evt-payment-confirmed",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-import-payment",
+      "from": "cmd-import-payment",
+      "to": "evt-payment-imported",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-record-manual-payment",
+      "from": "cmd-record-manual-payment",
+      "to": "evt-manual-payment",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-submit-exam",
+      "from": "cmd-submit-exam",
+      "to": "evt-exam-submitted",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-start-interview-session",
+      "from": "cmd-start-interview-session",
+      "to": "evt-interview-started",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-score-interview-answer",
+      "from": "cmd-score-interview-answer",
+      "to": "evt-interview-scored",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-advance-interview-question",
+      "from": "cmd-advance-interview-question",
+      "to": "evt-interview-advanced",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-finish-interview-session",
+      "from": "cmd-finish-interview-session",
+      "to": "evt-interview-finished",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-abandon-interview-session",
+      "from": "cmd-abandon-interview-session",
+      "to": "evt-interview-abandoned",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-create-group",
+      "from": "cmd-create-group",
+      "to": "evt-group-created",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-set-join-code",
+      "from": "cmd-set-join-code",
+      "to": "evt-join-code-set",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-join-group",
+      "from": "cmd-join-group",
+      "to": "evt-member-joined",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-leave-group",
+      "from": "cmd-leave-group",
+      "to": "evt-member-left",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-update-group-settings",
+      "from": "cmd-update-group-settings",
+      "to": "evt-group-settings-updated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-open-joint-exam",
+      "from": "cmd-open-joint-exam",
+      "to": "evt-joint-opened",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-close-joint-exam",
+      "from": "cmd-close-joint-exam",
+      "to": "evt-joint-closed",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-import-flag",
+      "from": "cmd-import-flag",
+      "to": "evt-flag-imported",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-raise-flag",
+      "from": "cmd-raise-flag",
+      "to": "evt-flag-raised",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-resolve-flag",
+      "from": "cmd-resolve-flag",
+      "to": "evt-flag-resolved",
+      "rel": "produces"
     }
   ]
 }

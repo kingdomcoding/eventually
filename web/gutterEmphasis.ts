@@ -95,7 +95,7 @@ export function bandHeaderEmphasis(em: GutterEmphasis): GutterEmphasis {
 }
 
 function gutterExpanded(state: FocusState): boolean {
-  return state.diagramMode === "timeline";
+  return state.diagramMode === "timeline" && !state.timelineStackDeferred;
 }
 
 export function isPureStory(state: FocusState): boolean {

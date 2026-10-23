@@ -10,6 +10,8 @@ export type { DiagramMode };
 
 export type FocusState = {
   diagramMode: DiagramMode;
+  /** When true, timeline layout is active but command/view/screen stack stays swimlane-hidden until morph ends. */
+  timelineStackDeferred?: boolean;
   showAll: boolean;
   focusAnchorId: string | null;
   /** Visibility: events explicitly opened by click; detail stays until that event is closed. */
@@ -29,7 +31,7 @@ export function connectedNodeIds(doc: BlueprintDocument, eventId: string): Set<s
 }
 
 function stackExpanded(state: FocusState): boolean {
-  return state.diagramMode === "timeline";
+  return state.diagramMode === "timeline" && !state.timelineStackDeferred;
 }
 
 export function focusHold(state: FocusState): boolean {

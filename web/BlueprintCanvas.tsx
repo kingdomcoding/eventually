@@ -41,6 +41,13 @@ import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 const nodeTypes = {
   sticky: StickyNode,
 };
@@ -129,6 +136,21 @@ export function BlueprintCanvas() {
   const layoutCameraPending = useRef(false);
   const diagramModeRef = useRef(diagramMode);
   diagramModeRef.current = diagramMode;
+
+  /** Hide timeline stack + upper gutter bands until swimlane→timeline morph completes. */
+  const [timelineStackDeferred, setTimelineStackDeferred] = useState(false);
+  const layoutMorphStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (!timelineStackDeferred) return;
+    if (isMorphing) {
+      layoutMorphStartedRef.current = true;
+      return;
+    }
+    if (!layoutMorphStartedRef.current) return;
+    layoutMorphStartedRef.current = false;
+    setTimelineStackDeferred(false);
+  }, [isMorphing, timelineStackDeferred]);
 
   const [flowViewport, setFlowViewport] = useState<Viewport>({ x: 0, y: 0, zoom: 1 });
   const [gutterHeight, setGutterHeight] = useState(600);
@@ -223,9 +245,10 @@ export function BlueprintCanvas() {
   const focusState = useMemo(
     () => ({
       ...sessionToFocusState(session, hoverExpandedId),
+      timelineStackDeferred,
       workflowPath,
     }),
-    [session, hoverExpandedId, workflowPath],
+    [session, hoverExpandedId, timelineStackDeferred, workflowPath],
   );
   focusStateRef.current = focusState;
 
@@ -263,7 +286,27 @@ export function BlueprintCanvas() {
     return () => ro.disconnect();
   }, []);
 
-  const gutterExpanded = diagramMode === "timeline";
+  const gutterExpanded = diagramMode === "timeline" && !timelineStackDeferred;
+
+  const beginDiagramModeChange = useCallback(
+    (next: DiagramMode) => {
+      if (next === diagramMode) return;
+      clearHover();
+      if (next === "timeline" && diagramMode === "swimlane") {
+        layoutMorphStartedRef.current = false;
+        if (!prefersReducedMotion()) {
+          setTimelineStackDeferred(true);
+        }
+      } else if (next === "swimlane") {
+        layoutMorphStartedRef.current = false;
+        setTimelineStackDeferred(false);
+      }
+      diagramModeRef.current = next;
+      layoutCameraPending.current = true;
+      dispatch({ type: "SET_DIAGRAM_MODE", mode: next });
+    },
+    [clearHover, dispatch, diagramMode],
+  );
 
   const gutterEmphasis = useMemo(
     () => computeGutterEmphasis(doc, layout.swimlaneRows, focusState, previewPhase),
@@ -275,12 +318,8 @@ export function BlueprintCanvas() {
   }, []);
 
   const toggleDiagramMode = useCallback(() => {
-    clearHover();
-    const next: DiagramMode = diagramMode === "swimlane" ? "timeline" : "swimlane";
-    diagramModeRef.current = next;
-    layoutCameraPending.current = true;
-    dispatch({ type: "SET_DIAGRAM_MODE", mode: next });
-  }, [clearHover, dispatch, diagramMode]);
+    beginDiagramModeChange(diagramMode === "swimlane" ? "timeline" : "swimlane");
+  }, [beginDiagramModeChange, diagramMode]);
 
   const holdFocus = focusHold(focusState);
 
@@ -456,16 +495,7 @@ export function BlueprintCanvas() {
           <h1>{index.meta.name}</h1>
           <div className="meta">{metaLine}</div>
         </div>
-        <BoardControls
-          diagramMode={diagramMode}
-          onSetDiagramMode={(mode) => {
-            if (mode === diagramMode) return;
-            clearHover();
-            diagramModeRef.current = mode;
-            layoutCameraPending.current = true;
-            dispatch({ type: "SET_DIAGRAM_MODE", mode });
-          }}
-        />
+        <BoardControls diagramMode={diagramMode} onSetDiagramMode={beginDiagramModeChange} />
         {showLegend ? (
           <div className="legend">
             <span>

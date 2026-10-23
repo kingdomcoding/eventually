@@ -49,3 +49,16 @@ test("hotel timeline lays out command and view with events", () => {
   assert.notEqual(evtY, cmdY);
   assert.ok(Math.abs(evtY - cmdY) > NODE_H);
 });
+
+test("apex timeline includes commands and screens from enriched model", () => {
+  const layout = computeLayout(apex, "timeline");
+  assert.equal(apex.meta.modelVersion, 4);
+  assert.ok(apex.nodes.some((n) => n.type === "command"));
+  assert.ok(apex.nodes.some((n) => n.type === "screen"));
+  assert.ok(layout.positions.has("cmd-register-device"));
+  assert.ok(layout.positions.has("scr-auth-google"));
+  assert.ok(layout.positions.has("cmd-submit-exam"));
+  const evtY = layout.positions.get("evt-device-registered")!.y;
+  const cmdY = layout.positions.get("cmd-register-device")!.y;
+  assert.notEqual(evtY, cmdY);
+});
