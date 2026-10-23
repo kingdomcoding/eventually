@@ -14,6 +14,13 @@ import type { FocusState, PreviewPhase } from "./viewMode.js";
 import { visibleDiagramNodeIds } from "./viewMode.js";
 
 const FOCUS_DEBOUNCE_MS = 80;
+const DEFAULT_FIT_MS = 280;
+
+export type CameraRunOptions = {
+  duration?: number;
+  /** When false, focus intents run immediately (e.g. layout morph sync). */
+  debounce?: boolean;
+};
 
 function fitPaddingForIntent(intent: CameraIntent): number {
   switch (intent.type) {
@@ -80,13 +87,14 @@ export function useCameraController(options: {
   );
 
   const runIntent = useCallback(
-    (intent: CameraIntent) => {
+    (intent: CameraIntent, options: CameraRunOptions = {}) => {
       if (intent.type === "Preserve") return;
 
       const ids = nodeIdsForIntent(intent);
       if (ids.length === 0) return;
 
-      const duration = prefersReducedMotion() ? 0 : 280;
+      const duration =
+        prefersReducedMotion() ? 0 : (options.duration ?? DEFAULT_FIT_MS);
       ignoreViewportUntil.current = Date.now() + duration + 120;
 
       const timelineSpine =
@@ -107,17 +115,18 @@ export function useCameraController(options: {
   );
 
   const scheduleIntent = useCallback(
-    (intent: CameraIntent) => {
-      if (intent.type === "FrameFocusClosure") {
+    (intent: CameraIntent, options: CameraRunOptions = {}) => {
+      const debounce = options.debounce !== false;
+      if (intent.type === "FrameFocusClosure" && debounce) {
         if (focusDebounce.current) clearTimeout(focusDebounce.current);
-        focusDebounce.current = setTimeout(() => runIntent(intent), FOCUS_DEBOUNCE_MS);
+        focusDebounce.current = setTimeout(() => runIntent(intent, options), FOCUS_DEBOUNCE_MS);
         return;
       }
       if (focusDebounce.current) {
         clearTimeout(focusDebounce.current);
         focusDebounce.current = null;
       }
-      runIntent(intent);
+      runIntent(intent, options);
     },
     [runIntent],
   );
@@ -131,9 +140,9 @@ export function useCameraController(options: {
   );
 
   const handleCameraIntent = useCallback(
-    (intent: CameraIntent) => {
+    (intent: CameraIntent, options?: CameraRunOptions) => {
       if (intent.type === "Preserve") return;
-      scheduleIntent(intent);
+      scheduleIntent(intent, options);
     },
     [scheduleIntent],
   );

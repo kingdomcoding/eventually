@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { NodePosition } from "./layoutMetrics.js";
 
-const DEFAULT_MS = 480;
+export const LAYOUT_MORPH_MS = 480;
+const DEFAULT_MS = LAYOUT_MORPH_MS;
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);

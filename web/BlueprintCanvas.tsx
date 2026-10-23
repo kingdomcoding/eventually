@@ -14,7 +14,7 @@ import { BlueprintDocumentSchema } from "@schema/document.js";
 import { indexForCanvas } from "@schema/canvas-index.js";
 import { buildEdges } from "./edges";
 import { computeLayout, type DiagramMode } from "./layout";
-import { useLayoutMorph } from "./useLayoutMorph";
+import { LAYOUT_MORPH_MS, useLayoutMorph } from "./useLayoutMorph";
 import { StickyNode, type StickyData } from "./StickyNode";
 import { computeGutterEmphasis } from "./gutterEmphasis";
 import { SwimlaneGutter } from "./SwimlaneGutter";
@@ -38,7 +38,8 @@ import {
 import { WorkflowRouteBar } from "./WorkflowRouteBar";
 import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
 
-const MIN_ZOOM = 0.3;
+/** Match timeline full-board fitView floor so manual pinch does not snap after mode switch. */
+const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 1.5;
 
 function prefersReducedMotion(): boolean {
@@ -101,7 +102,16 @@ function BoardControls({
   );
 }
 
-function cameraIntentForLayoutMode(
+function cameraIntentForLayoutMorph(
+  focusAnchorId: string | null,
+): import("./sessionState").CameraIntent {
+  if (focusAnchorId) {
+    return { type: "FrameFocusClosure", anchorId: focusAnchorId };
+  }
+  return { type: "FrameStoryTimeline" };
+}
+
+function cameraIntentForPostMorph(
   mode: DiagramMode,
   focusAnchorId: string | null,
 ): import("./sessionState").CameraIntent {
@@ -134,6 +144,8 @@ export function BlueprintCanvas() {
   const layout = useMemo(() => computeLayout(doc, diagramMode), [doc, diagramMode]);
   const { positions: displayPositions, isMorphing } = useLayoutMorph(layout.positions);
   const layoutCameraPending = useRef(false);
+  const morphSyncCameraFired = useRef(false);
+  const pendingTimelineFullFitRef = useRef(false);
   const diagramModeRef = useRef(diagramMode);
   diagramModeRef.current = diagramMode;
 
@@ -190,20 +202,52 @@ export function BlueprintCanvas() {
   }, [handleCameraIntent]);
 
   useEffect(() => {
-    if (isMorphing) return;
     if (!layoutCameraPending.current) return;
+
+    if (isMorphing) {
+      if (!morphSyncCameraFired.current) {
+        morphSyncCameraFired.current = true;
+        handleCameraIntent(cameraIntentForLayoutMorph(session.board.focusAnchorId), {
+          duration: prefersReducedMotion() ? 0 : LAYOUT_MORPH_MS,
+          debounce: false,
+        });
+      }
+      return;
+    }
+
     layoutCameraPending.current = false;
-    const intent = cameraIntentForLayoutMode(
-      diagramModeRef.current,
-      session.board.focusAnchorId,
-    );
-    handleCameraIntent(intent);
-    if (diagramModeRef.current === "timeline") {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => handleCameraIntent(intent));
-      });
+    const mode = diagramModeRef.current;
+    const anchorId = session.board.focusAnchorId;
+
+    if (mode === "timeline") {
+      if (anchorId) {
+        if (!morphSyncCameraFired.current) {
+          handleCameraIntent({ type: "FrameFocusClosure", anchorId });
+        }
+        return;
+      }
+      pendingTimelineFullFitRef.current = true;
+      return;
+    }
+
+    if (!morphSyncCameraFired.current) {
+      handleCameraIntent(cameraIntentForPostMorph(mode, anchorId));
     }
   }, [isMorphing, handleCameraIntent, session.board.focusAnchorId]);
+
+  useEffect(() => {
+    if (!pendingTimelineFullFitRef.current) return;
+    if (diagramMode !== "timeline") return;
+    if (timelineStackDeferred) return;
+    if (session.board.focusAnchorId) return;
+    pendingTimelineFullFitRef.current = false;
+    handleCameraIntent({ type: "FrameFullBoard" });
+  }, [
+    diagramMode,
+    timelineStackDeferred,
+    handleCameraIntent,
+    session.board.focusAnchorId,
+  ]);
 
   const { openEventIds, focusAnchorId, workflowFromEventId, workflowToEventId } = {
     openEventIds: new Set(session.board.openEventIds),
@@ -300,9 +344,11 @@ export function BlueprintCanvas() {
       } else if (next === "swimlane") {
         layoutMorphStartedRef.current = false;
         setTimelineStackDeferred(false);
+        pendingTimelineFullFitRef.current = false;
       }
       diagramModeRef.current = next;
       layoutCameraPending.current = true;
+      morphSyncCameraFired.current = false;
       dispatch({ type: "SET_DIAGRAM_MODE", mode: next });
     },
     [clearHover, dispatch, diagramMode],
