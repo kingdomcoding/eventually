@@ -1,7 +1,7 @@
 import type { BlueprintDocument, SwimlaneBand } from "@schema/document.js";
 import type { SwimlaneRow } from "./layoutMetrics.js";
 import { BAND_GAP } from "./layoutMetrics.js";
-import { TIMELINE_EVENTS_ROW_ID } from "./timelineLayout.js";
+import { TIMELINE_EVENTS_ROW_ID, TIMELINE_SCREENS_ROW_ID } from "./timelineLayout.js";
 import { flowYToScreenY, type FlowViewport, type GutterDivider } from "./gutterLayout.js";
 import { BAND_LABEL } from "./swimlaneLabels.js";
 import { GUTTER_COLLAPSIBLE_BANDS } from "./swimlaneLabels.js";
@@ -54,7 +54,11 @@ function maxTierInLane(
 ): DisplayTier {
   let best: DisplayTier = "hidden";
   for (const n of doc.nodes) {
-    if (n.swimlaneId !== laneId) continue;
+    if (laneId === TIMELINE_SCREENS_ROW_ID) {
+      if (n.type !== "screen") continue;
+    } else if (n.swimlaneId !== laneId) {
+      continue;
+    }
     best = maxTier(best, nodeDisplayTier(doc, n.id, state, previewPhase));
   }
   return best;
@@ -95,6 +99,7 @@ export function bandHeaderEmphasis(em: GutterEmphasis): GutterEmphasis {
 }
 
 function gutterExpanded(state: FocusState): boolean {
+  if (state.diagramMode === "design") return true;
   return state.diagramMode === "timeline" && !state.timelineStackDeferred;
 }
 

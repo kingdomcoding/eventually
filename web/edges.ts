@@ -38,6 +38,8 @@ const STROKE_DASH = "7 5";
 export type BuildEdgesOptions = {
   /** When false, omit stream spine edges (ordersBefore, loopsBack). */
   includeStreamEdges?: boolean;
+  /** When false, omit command/screen EM edges (issues, produces, …). */
+  includeEmEdges?: boolean;
 };
 
 export function buildEdges(
@@ -46,10 +48,14 @@ export function buildEdges(
   options: BuildEdgesOptions = {},
 ): Edge[] {
   const includeStream = options.includeStreamEdges !== false;
+  const includeEm = options.includeEmEdges !== false;
   return doc.edges
     .filter((e) => {
-      if (includeStream) return true;
-      return e.rel !== "ordersBefore" && e.rel !== "loopsBack";
+      if (e.rel === "ordersBefore" || e.rel === "loopsBack") {
+        return includeStream;
+      }
+      if (!includeEm) return false;
+      return true;
     })
     .map((e) => {
     const longRange = isLongRangeUpdate(e.rel, e.from, e.to, positions);

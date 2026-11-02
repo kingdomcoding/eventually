@@ -1,13 +1,17 @@
 import type { SwimlaneBand } from "@schema/document.js";
 
 export const BAND_LABEL: Record<SwimlaneBand, string> = {
-  ui: "Users",
-  commandView: "Commands · views",
+  ui: "User categories",
+  commandView: "Commands · Views",
   events: "Streams",
 };
 
+/** Band title for the ui band when Design mode shows only category rows. */
+export const BAND_LABEL_DESIGN_UI = "Design";
+
 export const BAND_LABEL_TIMELINE: Record<SwimlaneBand, string> = {
   ...BAND_LABEL,
+  ui: "Screens",
   events: "Events",
 };
 

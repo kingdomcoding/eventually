@@ -13,6 +13,7 @@ export type SessionState = {
 export type CameraIntent =
   | { type: "Preserve" }
   | { type: "FrameStoryTimeline" }
+  | { type: "FrameDesignBoard" }
   | { type: "FrameFocusClosure"; anchorId: string }
   | { type: "FrameVisibleOpen" }
   | { type: "FrameFullBoard" }
@@ -32,7 +33,7 @@ export type SessionAction =
   | { type: "SET_DIAGRAM_MODE"; mode: DiagramMode };
 
 const emptyBoard = (): SessionSnapshot["board"] => ({
-  diagramMode: "swimlane",
+  diagramMode: "design",
   showAll: false,
   openEventIds: [],
   openOrder: [],
@@ -67,6 +68,11 @@ function boardFromSnapshot(snapshot: SessionSnapshot): SessionSnapshot["board"] 
 }
 
 function cameraForDiagramMode(board: SessionSnapshot["board"]): CameraIntent {
+  if (board.diagramMode === "design") {
+    return board.focusAnchorId ?
+        { type: "FrameFocusClosure", anchorId: board.focusAnchorId }
+      : { type: "FrameDesignBoard" };
+  }
   if (board.diagramMode === "timeline") {
     return board.focusAnchorId ?
         { type: "FrameFocusClosure", anchorId: board.focusAnchorId }
@@ -183,7 +189,7 @@ function cameraOnHydrate(board: SessionSnapshot["board"], hasViewport: boolean):
   if (board.workflowFromEventId && board.workflowToEventId) {
     return cameraForWorkflowEndpoints(board);
   }
-  if (board.diagramMode === "timeline") {
+  if (board.diagramMode === "design" || board.diagramMode === "timeline") {
     return cameraForDiagramMode(board);
   }
   if (hasViewport) return { type: "Preserve" };
@@ -201,7 +207,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
       if (!action.snapshot) {
         return {
           state: { board: emptyBoard(), viewport: null, hydrated: true },
-          camera: { type: "FrameStoryTimeline" },
+          camera: { type: "FrameDesignBoard" },
         };
       }
       const board = boardFromSnapshot(action.snapshot);
@@ -233,7 +239,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
     case "RESET_STORY":
       return {
         state: { ...state, board: emptyBoard(), viewport: state.viewport },
-        camera: { type: "FrameStoryTimeline" },
+        camera: { type: "FrameDesignBoard" },
       };
     case "SHOW_ALL_ON":
       return {
@@ -247,7 +253,7 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
       if (state.board.showAll || state.board.openEventIds.length > 0 || state.board.focusAnchorId) {
         return {
           state: { ...state, board: emptyBoard() },
-          camera: { type: "FrameStoryTimeline" },
+          camera: { type: "FrameDesignBoard" },
         };
       }
       return {

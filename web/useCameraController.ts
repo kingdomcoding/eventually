@@ -12,6 +12,7 @@ import type { LayoutResult } from "./layout.js";
 import type { CameraIntent } from "./sessionState.js";
 import type { FocusState, PreviewPhase } from "./viewMode.js";
 import { visibleDiagramNodeIds } from "./viewMode.js";
+import { DESIGN_BOARD_PADDING, designBoardViewport, designScreenNodeIds } from "./designStoryCamera.js";
 import { SWIMLANE_STORY_PADDING, swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
 
 const FOCUS_DEBOUNCE_MS = 80;
@@ -27,6 +28,8 @@ function fitPaddingForIntent(intent: CameraIntent): number {
   switch (intent.type) {
     case "FrameStoryTimeline":
       return 0.12;
+    case "FrameDesignBoard":
+      return DESIGN_BOARD_PADDING;
     case "FrameFocusClosure":
       return 0.22;
     case "FrameVisibleOpen":
@@ -71,6 +74,8 @@ export function useCameraController(options: {
           return [];
         case "FrameStoryTimeline":
           return eventTimelineNodeIds(doc);
+        case "FrameDesignBoard":
+          return designScreenNodeIds(doc);
         case "FrameFocusClosure":
           return [...focusFitClosure(doc, intent.anchorId)];
         case "FrameVisibleOpen":
@@ -101,9 +106,9 @@ export function useCameraController(options: {
       ignoreViewportUntil.current = Date.now() + duration + 120;
 
       const padding = fitPaddingForIntent(intent);
-      const swimlaneStory =
-        intent.type === "FrameStoryTimeline" &&
-        getFocusState().diagramMode === "swimlane";
+      const mode = getFocusState().diagramMode;
+      const swimlaneStory = intent.type === "FrameStoryTimeline" && mode === "swimlane";
+      const designBoard = intent.type === "FrameDesignBoard" && mode === "design";
 
       requestAnimationFrame(() => {
         if (swimlaneStory) {
@@ -121,8 +126,22 @@ export function useCameraController(options: {
           return;
         }
 
-        const timelineFullBoard =
-          intent.type === "FrameFullBoard" && getFocusState().diagramMode === "timeline";
+        if (designBoard) {
+          const { width, height } = getFlowPaneSize();
+          const vp = designBoardViewport(
+            layout,
+            doc,
+            width,
+            height,
+            DESIGN_BOARD_PADDING,
+            minZoom,
+            maxZoom,
+          );
+          setViewport(vp, { duration });
+          return;
+        }
+
+        const timelineFullBoard = intent.type === "FrameFullBoard" && mode === "timeline";
         const fitMinZoom = timelineFullBoard ? Math.min(minZoom, 0.1) : minZoom;
 
         void fitView({

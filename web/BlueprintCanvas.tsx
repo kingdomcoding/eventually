@@ -37,7 +37,9 @@ import {
 } from "./viewMode";
 import { WorkflowRouteBar } from "./WorkflowRouteBar";
 import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
+import { nextDiagramMode } from "./diagramMode";
 import { swimlaneViewportLooksStale } from "./swimlaneStoryCamera";
+import { BAND_LABEL_DESIGN_UI } from "./swimlaneLabels";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
@@ -82,6 +84,14 @@ function BoardControls({
       <div className="view-mode-toggle" role="group" aria-label="Diagram layout">
         <button
           type="button"
+          className={diagramMode === "design" ? "is-active" : ""}
+          aria-pressed={diagramMode === "design"}
+          onClick={() => onSetDiagramMode("design")}
+        >
+          Design
+        </button>
+        <button
+          type="button"
           className={diagramMode === "swimlane" ? "is-active" : ""}
           aria-pressed={diagramMode === "swimlane"}
           onClick={() => onSetDiagramMode("swimlane")}
@@ -98,20 +108,25 @@ function BoardControls({
         </button>
       </div>
       <div className="view-mode-hint">
-        {diagramMode === "swimlane"
-          ? "EventStore streams · hover preview · click to open detail · M or dbl-click canvas switches to Timeline"
-          : "One story spine with commands, views, and screens · M or dbl-click canvas switches to Swimlanes"}
+        {diagramMode === "design"
+          ? "User categories and screens · M or double-click canvas → Swimlanes"
+          : diagramMode === "swimlane"
+            ? "EventStore streams · hover preview · click to open detail · M or double-click → Timeline"
+            : "One story spine with commands, views, and screens · M or double-click → Design"}
       </div>
     </div>
   );
 }
 
 function cameraIntentForLayoutMorph(
+  mode: DiagramMode,
   focusAnchorId: string | null,
 ): import("./sessionState").CameraIntent {
   if (focusAnchorId) {
     return { type: "FrameFocusClosure", anchorId: focusAnchorId };
   }
+  if (mode === "design") return { type: "FrameDesignBoard" };
+  if (mode === "timeline") return { type: "FrameStoryTimeline" };
   return { type: "FrameStoryTimeline" };
 }
 
@@ -122,7 +137,9 @@ function cameraIntentForPostMorph(
   if (focusAnchorId) {
     return { type: "FrameFocusClosure", anchorId: focusAnchorId };
   }
-  return mode === "timeline" ? { type: "FrameFullBoard" } : { type: "FrameStoryTimeline" };
+  if (mode === "design") return { type: "FrameDesignBoard" };
+  if (mode === "timeline") return { type: "FrameFullBoard" };
+  return { type: "FrameStoryTimeline" };
 }
 
 function formatFocusLabel(doc: ReturnType<typeof BlueprintDocumentSchema.parse>, anchorId: string): string {
@@ -191,7 +208,7 @@ export function BlueprintCanvas() {
       sessionToFocusState(
         {
           board: {
-            diagramMode: "swimlane",
+            diagramMode: "design",
             showAll: false,
             openEventIds: [],
             openOrder: [],
@@ -215,12 +232,10 @@ export function BlueprintCanvas() {
     if (!layoutCameraPending.current) return;
 
     if (isMorphing) {
-      if (
-        !morphSyncCameraFired.current &&
-        diagramModeRef.current === "timeline"
-      ) {
+      if (!morphSyncCameraFired.current) {
         morphSyncCameraFired.current = true;
-        handleCameraIntent(cameraIntentForLayoutMorph(session.board.focusAnchorId), {
+        const mode = diagramModeRef.current;
+        handleCameraIntent(cameraIntentForLayoutMorph(mode, session.board.focusAnchorId), {
           duration: prefersReducedMotion() ? 0 : LAYOUT_MORPH_MS,
           debounce: false,
         });
@@ -243,9 +258,7 @@ export function BlueprintCanvas() {
       return;
     }
 
-    if (mode === "swimlane") {
-      handleCameraIntent(cameraIntentForPostMorph(mode, anchorId));
-    } else if (!morphSyncCameraFired.current) {
+    if (!morphSyncCameraFired.current) {
       handleCameraIntent(cameraIntentForPostMorph(mode, anchorId));
     }
   }, [isMorphing, handleCameraIntent, session.board.focusAnchorId]);
@@ -278,7 +291,8 @@ export function BlueprintCanvas() {
   );
 
   /** Disable hover only during story + focus-hold (no pinned slices). */
-  const hoverPreviewEnabled = !(focusAnchorId !== null && openEventIds.size === 0);
+  const hoverPreviewEnabled =
+    diagramMode !== "design" && !(focusAnchorId !== null && openEventIds.size === 0);
 
   const eventTargets = useMemo(
     () =>
@@ -320,6 +334,11 @@ export function BlueprintCanvas() {
       return;
     }
     if (session.board.diagramMode === "timeline") {
+      return;
+    }
+    if (session.board.diagramMode === "design") {
+      if (session.viewport) restoreViewport(session.viewport);
+      else handleCameraIntent({ type: "FrameDesignBoard" });
       return;
     }
     if (session.viewport) {
@@ -368,12 +387,12 @@ export function BlueprintCanvas() {
     (next: DiagramMode) => {
       if (next === diagramMode) return;
       clearHover();
-      if (next === "timeline" && diagramMode === "swimlane") {
+      if (next === "timeline" && (diagramMode === "swimlane" || diagramMode === "design")) {
         layoutMorphStartedRef.current = false;
         if (!prefersReducedMotion()) {
           setTimelineStackDeferred(true);
         }
-      } else if (next === "swimlane") {
+      } else if (next !== "timeline") {
         layoutMorphStartedRef.current = false;
         setTimelineStackDeferred(false);
         pendingTimelineFullFitRef.current = false;
@@ -395,8 +414,8 @@ export function BlueprintCanvas() {
     setFlowViewport(viewport);
   }, []);
 
-  const toggleDiagramMode = useCallback(() => {
-    beginDiagramModeChange(diagramMode === "swimlane" ? "timeline" : "swimlane");
+  const cycleDiagramMode = useCallback(() => {
+    beginDiagramModeChange(nextDiagramMode(diagramMode));
   }, [beginDiagramModeChange, diagramMode]);
 
   const holdFocus = focusHold(focusState);
@@ -409,11 +428,11 @@ export function BlueprintCanvas() {
       if (!target) return;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
       event.preventDefault();
-      toggleDiagramMode();
+      cycleDiagramMode();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleDiagramMode]);
+  }, [cycleDiagramMode]);
 
   const onBoardDoubleClick = useCallback(
     (event: React.MouseEvent) => {
@@ -421,9 +440,9 @@ export function BlueprintCanvas() {
       if (el.closest(".react-flow__node")) return;
       if (el.closest(".react-flow__controls")) return;
       if (el.closest(".react-flow__minimap")) return;
-      toggleDiagramMode();
+      cycleDiagramMode();
     },
-    [toggleDiagramMode],
+    [cycleDiagramMode],
   );
 
   const handleMoveEnd = useCallback(() => {
@@ -464,6 +483,7 @@ export function BlueprintCanvas() {
     () =>
       buildEdges(doc, displayPositions, {
         includeStreamEdges: diagramMode === "swimlane",
+        includeEmEdges: diagramMode !== "design",
       }),
     [doc, displayPositions, diagramMode],
   );
@@ -544,27 +564,30 @@ export function BlueprintCanvas() {
   });
 
   const showLegend =
-    diagramMode === "timeline" ||
-    openEventIds.size > 0 ||
-    hoverExpandedId !== null ||
-    focusAnchorId !== null;
+    diagramMode !== "design" &&
+    (diagramMode === "timeline" ||
+      openEventIds.size > 0 ||
+      hoverExpandedId !== null ||
+      focusAnchorId !== null);
 
   const metaLine =
-    diagramMode === "timeline"
-      ? focusAnchorId
-        ? `Timeline · focus — ${formatFocusLabel(doc, focusAnchorId)}`
-        : openEventIds.size > 0
-          ? `Timeline · ${openEventIds.size} open slice(s)`
-          : "Timeline — full event-model stack on one story spine"
-      : workflowPath.status === "valid"
-        ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
-        : focusAnchorId
-          ? holdFocus
-            ? `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)}`
-            : `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
+    diagramMode === "design"
+      ? "Design — screens by user category (double-click canvas to cycle views)"
+      : diagramMode === "timeline"
+        ? focusAnchorId
+          ? `Timeline · focus — ${formatFocusLabel(doc, focusAnchorId)}`
           : openEventIds.size > 0
-            ? `Swimlanes · ${openEventIds.size} open slice(s) · click an event to focus`
-            : "Swimlanes — one row per EventStore pattern · hover for preview · click an event for detail";
+            ? `Timeline · ${openEventIds.size} open slice(s)`
+            : "Timeline — full event-model stack on one story spine"
+        : workflowPath.status === "valid"
+          ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
+          : focusAnchorId
+            ? holdFocus
+              ? `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)}`
+              : `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
+            : openEventIds.size > 0
+              ? `Swimlanes · ${openEventIds.size} open slice(s) · click an event to focus`
+              : "Swimlanes — one row per EventStore pattern · hover for preview · click an event for detail";
 
   return (
     <>
@@ -615,6 +638,8 @@ export function BlueprintCanvas() {
             gutterHeight={gutterHeight}
             emphasis={gutterEmphasis}
             showAll={gutterExpanded}
+            bandLabelOverrides={diagramMode === "design" ? { ui: BAND_LABEL_DESIGN_UI } : undefined}
+            hideBandLabels={diagramMode === "timeline"}
           />
         </div>
         <div className="react-flow-host">

@@ -27,6 +27,9 @@ export type SwimlaneGutterProps = {
   gutterHeight: number;
   emphasis: GutterEmphasisState;
   showAll: boolean;
+  bandLabelOverrides?: Partial<Record<SwimlaneBand, string>>;
+  /** Timeline: row tags only — no band-gap labels or band chips on rows. */
+  hideBandLabels?: boolean;
 };
 
 function emphasisClass(level: "active" | "present" | "idle"): string {
@@ -43,7 +46,10 @@ function SwimlaneGutterComponent({
   gutterHeight,
   emphasis,
   showAll,
+  bandLabelOverrides,
+  hideBandLabels = false,
 }: SwimlaneGutterProps) {
+  const bandLabel = (band: SwimlaneBand) => bandLabelOverrides?.[band] ?? BAND_LABEL[band];
   const laneScreens = useMemo(() => allLaneRowsScreen(rows, viewport), [rows, viewport]);
 
   const gapScreens = useMemo(() => {
@@ -105,20 +111,22 @@ function SwimlaneGutterComponent({
         )}
       </div>
 
-      {gapScreens.map((gap) => {
-        if (!gapLabelVisible.get(gap.band)) return null;
-        if (!rectIntersectsViewport(gap.top, gap.height, gutterHeight)) return null;
-        const bandEm = emphasis.byBand.get(gap.band) ?? "idle";
-        return (
-          <div
-            key={`gap-${gap.band}`}
-            className={`lane-gutter-band-gap ${bandClass(gap.band)} ${emphasisClass(bandHeaderEmphasis(bandEm))}`}
-            style={{ top: gap.top, height: gap.height }}
-          >
-            <span className="lane-gutter-band-gap__label">{gap.label}</span>
-          </div>
-        );
-      })}
+      {!hideBandLabels
+        ? gapScreens.map((gap) => {
+            if (!gapLabelVisible.get(gap.band)) return null;
+            if (!rectIntersectsViewport(gap.top, gap.height, gutterHeight)) return null;
+            const bandEm = emphasis.byBand.get(gap.band) ?? "idle";
+            return (
+              <div
+                key={`gap-${gap.band}`}
+                className={`lane-gutter-band-gap ${bandClass(gap.band)} ${emphasisClass(bandHeaderEmphasis(bandEm))}`}
+                style={{ top: gap.top, height: gap.height }}
+              >
+                <span className="lane-gutter-band-gap__label">{bandLabel(gap.band)}</span>
+              </div>
+            );
+          })
+        : null}
 
       <div className="lane-gutter-rows">
         {rows.map((row, i) => {
@@ -132,7 +140,9 @@ function SwimlaneGutterComponent({
           const named = swimlaneRowLabelNamed(row.band);
           const rowEm = emphasis.byLaneId.get(row.id) ?? "idle";
           const showBandChip =
-            bandChipRowId.get(row.band) === row.id && !gapLabelVisible.get(row.band);
+            !hideBandLabels &&
+            bandChipRowId.get(row.band) === row.id &&
+            !gapLabelVisible.get(row.band);
           const bandEm = emphasis.byBand.get(row.band) ?? "idle";
 
           return (
@@ -145,7 +155,7 @@ function SwimlaneGutterComponent({
                 <div
                   className={`lane-gutter-band-chip ${emphasisClass(bandHeaderEmphasis(bandEm))}`}
                 >
-                  {BAND_LABEL[row.band]}
+                  {bandLabel(row.band)}
                 </div>
               ) : null}
               <div className={`lane-gutter-label${named ? " lane-gutter-label--named" : ""}`}>

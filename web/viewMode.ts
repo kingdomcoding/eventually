@@ -127,6 +127,10 @@ export function nodeDisplayTier(
   const n = doc.nodes.find((x) => x.id === nodeId);
   if (!n) return "hidden";
 
+  if (state.diagramMode === "design") {
+    return n.type === "screen" ? "full" : "hidden";
+  }
+
   if (stackExpanded(state)) {
     if (workflowValid(state)) {
       const wf = workflowNodeTier(doc, nodeId, state, previewPhase);
@@ -213,6 +217,8 @@ export function edgeDisplayTier(
 ): DisplayTier {
   const be = doc.edges.find((e) => e.id === blueprintEdgeId);
   if (!be) return "hidden";
+
+  if (state.diagramMode === "design") return "hidden";
 
   if (workflowValid(state)) {
     const wp = state.workflowPath;

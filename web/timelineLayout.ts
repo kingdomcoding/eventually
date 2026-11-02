@@ -19,6 +19,7 @@ import {
 } from "./layoutMetrics.js";
 
 const TIMELINE_EVENTS_ROW_ID = "__timeline_events__";
+export const TIMELINE_SCREENS_ROW_ID = "__timeline_screens__";
 
 const BAND_ORDER = ["ui", "commandView", "events"] as const;
 
@@ -30,7 +31,7 @@ function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
     if (band === "events") {
       rows.push({
         id: TIMELINE_EVENTS_ROW_ID,
-        name: "Timeline",
+        name: "Events",
         band: "events",
         order: 0,
         y,
@@ -41,20 +42,37 @@ function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
       continue;
     }
 
-    const lanes = doc.swimlanes.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
-    for (const lane of lanes) {
+    if (band === "ui") {
       rows.push({
-        id: lane.id,
-        name: lane.name,
-        band: lane.band,
-        order: lane.order,
+        id: TIMELINE_SCREENS_ROW_ID,
+        name: "Screens",
+        band: "ui",
+        order: 0,
         y,
         yLine: y + LANE_ROW_HEIGHT,
         height: LANE_ROW_HEIGHT,
       });
-      y += LANE_ROW_HEIGHT;
+      y += LANE_ROW_HEIGHT + BAND_GAP;
+      continue;
     }
-    if (lanes.length) y += BAND_GAP;
+
+    if (band === "commandView") {
+      const lanes = doc.swimlanes.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
+      const lane = lanes[0];
+      if (lane) {
+        rows.push({
+          id: lane.id,
+          name: "Commands · Views",
+          band: lane.band,
+          order: lane.order,
+          y,
+          yLine: y + LANE_ROW_HEIGHT,
+          height: LANE_ROW_HEIGHT,
+        });
+        y += LANE_ROW_HEIGHT + BAND_GAP;
+      }
+      continue;
+    }
   }
 
   return rows;
@@ -158,18 +176,13 @@ function maxScreensPerStoryIndex(
   doc: BlueprintDocument,
   events: Array<BlueprintNode & { type: "event" }>,
 ): Map<number, number> {
-  const perLaneSi = new Map<string, number>();
+  const countAtSi = new Map<number, number>();
   for (const n of doc.nodes) {
     if (n.type !== "screen") continue;
     const si = screenStoryIndex(doc, n, events);
-    const k = `${n.swimlaneId}|${si}`;
-    perLaneSi.set(k, (perLaneSi.get(k) ?? 0) + 1);
+    countAtSi.set(si, (countAtSi.get(si) ?? 0) + 1);
   }
-  const maxAtSi = new Map<number, number>();
-  for (const [k, c] of perLaneSi) {
-    const si = Number(k.split("|")[1]);
-    maxAtSi.set(si, Math.max(maxAtSi.get(si) ?? 0, c));
-  }
+  const maxAtSi = countAtSi;
   return maxAtSi;
 }
 
@@ -181,12 +194,6 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
   const yEvt = swimlaneRows.find((r) => r.band === "events")?.y ?? 400;
   const yMidPlaced = yForLaneRow(yMid);
   const yEventPlaced = yForLaneRow(yEvt);
-
-  function rowY(swimlaneId: string, band: "ui" | "events"): number {
-    const y = yBySwimlane.get(swimlaneId);
-    if (y !== undefined) return y;
-    return band === "ui" ? yUi : yEvt;
-  }
 
   const positions = new Map<string, NodePosition>();
   const events = doc.nodes.filter(
@@ -212,11 +219,13 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
 
   const screenSlot = new Map<string, number>();
 
-  function placeScreen(id: string, baseX: number, swimlaneId: string, laneRowY: number) {
-    const key = `${swimlaneId}|${baseX}`;
+  const screensRowY = yBySwimlane.get(TIMELINE_SCREENS_ROW_ID) ?? yUi;
+
+  function placeScreen(id: string, baseX: number, storyIndex: number) {
+    const key = `${storyIndex}|${Math.round(baseX)}`;
     const idx = screenSlot.get(key) ?? 0;
     screenSlot.set(key, idx + 1);
-    positions.set(id, { x: baseX + idx * SCREEN_STAGGER_X, y: yForLaneRow(laneRowY) });
+    positions.set(id, { x: baseX + idx * SCREEN_STAGGER_X, y: yForLaneRow(screensRowY) });
   }
 
   for (const event of events) {
@@ -249,21 +258,24 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
       continue;
     }
     if (n.type === "screen") {
-      const laneTop = rowY(n.swimlaneId, "ui");
       const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
       if (issue) {
         const cmdPos = positions.get(issue.to);
-        placeScreen(n.id, cmdPos?.x ?? xAtStory(0), n.swimlaneId, laneTop);
+        const cmd = doc.nodes.find((x) => x.id === issue.to && x.type === "command");
+        const evtId = cmd?.type === "command" ? cmd.produces[0] : undefined;
+        const si = evtId ? storyIndexForEvent(doc, evtId) : 0;
+        placeScreen(n.id, cmdPos?.x ?? xAtStory(0), si);
         continue;
       }
       const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
       if (render) {
         const viewPos = positions.get(render.from);
-        placeScreen(n.id, viewPos?.x ?? xAtStory(0), n.swimlaneId, laneTop);
+        const si = screenStoryIndex(doc, n, events);
+        placeScreen(n.id, viewPos?.x ?? xAtStory(0), si);
         continue;
       }
       const si = screenStoryIndex(doc, n, events);
-      placeScreen(n.id, xAtStory(si), n.swimlaneId, laneTop);
+      placeScreen(n.id, xAtStory(si), si);
     }
   }
 

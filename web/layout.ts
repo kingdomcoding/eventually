@@ -20,6 +20,7 @@ import {
   type SwimlaneRow,
 } from "./layoutMetrics.js";
 import { layoutAllStreams } from "./streamLayout.js";
+import { computeDesignLayout } from "./designLayout.js";
 import { computeTimelineLayout } from "./timelineLayout.js";
 
 import type { DiagramMode } from "./sessionTypes.js";
@@ -341,8 +342,10 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
   return { positions, swimlaneRows };
 }
 
-export function computeLayout(doc: BlueprintDocument, mode: DiagramMode = "swimlane"): LayoutResult {
-  return mode === "timeline" ? computeTimelineLayout(doc) : computeStreamLayout(doc);
+export function computeLayout(doc: BlueprintDocument, mode: DiagramMode = "design"): LayoutResult {
+  if (mode === "design") return computeDesignLayout(doc);
+  if (mode === "timeline") return computeTimelineLayout(doc);
+  return computeStreamLayout(doc);
 }
 
 export function computePositions(doc: BlueprintDocument, mode: DiagramMode = "swimlane"): Map<string, NodePosition> {

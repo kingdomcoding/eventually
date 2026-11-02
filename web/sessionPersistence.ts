@@ -41,7 +41,7 @@ export function loadPersistedSession(): SessionSnapshot | null {
     if (parsed.version !== 1 || !parsed.board) return null;
     return {
       version: 2,
-      board: normalizeBoard({ ...parsed.board, diagramMode: "swimlane" }),
+      board: normalizeBoard({ ...parsed.board, diagramMode: "design" }),
       viewport: parsed.viewport ?? null,
     };
   } catch {

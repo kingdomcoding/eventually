@@ -22,7 +22,7 @@ const hotel = BlueprintDocumentSchema.parse(
 );
 
 test("lane row screen height scales with zoom", () => {
-  const { swimlaneRows } = computeLayout(hotel);
+  const { swimlaneRows } = computeLayout(hotel, "swimlane");
   const row = swimlaneRows[0]!;
   const atHalf = laneRowScreenRect(row, { x: 0, y: 0, zoom: 0.5 });
   assert.equal(atHalf.height, LANE_ROW_HEIGHT * 0.5);
@@ -32,7 +32,7 @@ test("lane row screen height scales with zoom", () => {
 });
 
 test("band gaps sit between bands in flow space", () => {
-  const { swimlaneRows } = computeLayout(hotel);
+  const { swimlaneRows } = computeLayout(hotel, "swimlane");
   const gaps = bandGapsFromRows(swimlaneRows);
   assert.ok(gaps.length >= 2);
   const cvGap = gaps.find((g) => g.band === "commandView");
@@ -41,7 +41,7 @@ test("band gaps sit between bands in flow space", () => {
 });
 
 test("all lane rows screen tops follow viewport pan", () => {
-  const { swimlaneRows } = computeLayout(hotel);
+  const { swimlaneRows } = computeLayout(hotel, "swimlane");
   const vp = { x: 10, y: -40, zoom: 0.8 };
   const screens = allLaneRowsScreen(swimlaneRows, vp);
   assert.equal(screens[0]!.top, swimlaneRows[0]!.y * vp.zoom + vp.y);
@@ -49,7 +49,7 @@ test("all lane rows screen tops follow viewport pan", () => {
 });
 
 test("visible gutter dividers hide band lines when collapsible bands are collapsed", () => {
-  const { swimlaneRows } = computeLayout(hotel);
+  const { swimlaneRows } = computeLayout(hotel, "swimlane");
   const vp = { x: 0, y: 0, zoom: 1 };
   const all = gutterDividers(swimlaneRows, vp);
   const byLaneTier = new Map<string, DisplayTier>();
