@@ -808,7 +808,7 @@
     {
       "type": "event",
       "id": "evt-customer-redirected-to-cancel",
-      "name": "Customer Redirected To Cancel",
+      "name": "Customer Redirected To Cancel Page",
       "streamId": "stream-paystack-transaction",
       "sliceId": "slice-billing",
       "timelineIndex": 2,
@@ -1055,6 +1055,19 @@
       ],
       "rejections": [],
       "notes": "Records that the customer visited the Paystack payment success page."
+    },
+    {
+      "type": "command",
+      "id": "cmd-redirect-to-cancel-page",
+      "name": "Mark Customer Visit to Cancel Page",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-customer-redirected-to-cancel"
+      ],
+      "rejections": [],
+      "notes": "Records that the customer visited the Paystack payment cancel page."
     },
     {
       "type": "command",
@@ -1566,6 +1579,15 @@
       "notes": "In-app success return after Paystack checkout; issues Mark Customer Visit to Success Page."
     },
     {
+      "type": "trigger",
+      "id": "trg-cancel-page",
+      "name": "Paystack Payment Cancel Page",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "notes": "In-app cancel return after Paystack checkout; issues Mark Customer Visit to Cancel Page."
+    },
+    {
       "type": "screen",
       "id": "scr-pay-return",
       "name": "Payment return",
@@ -1932,6 +1954,12 @@
       "rel": "issues"
     },
     {
+      "id": "em-issue-58",
+      "from": "trg-cancel-page",
+      "to": "cmd-redirect-to-cancel-page",
+      "rel": "issues"
+    },
+    {
       "id": "em-issue-10",
       "from": "scr-mobile-billing",
       "to": "cmd-cancel-subscription",
@@ -2274,6 +2302,12 @@
       "rel": "produces"
     },
     {
+      "id": "em-produce-cmd-redirect-to-cancel-page",
+      "from": "cmd-redirect-to-cancel-page",
+      "to": "evt-customer-redirected-to-cancel",
+      "rel": "produces"
+    },
+    {
       "id": "em-produce-cmd-confirm-payment",
       "from": "cmd-confirm-payment",
       "to": "evt-payment-confirmed",
@@ -2523,6 +2557,12 @@
       "id": "em-redirect-trg-paystack-checkout-trg-success-page",
       "from": "trg-paystack-checkout",
       "to": "trg-success-page",
+      "rel": "redirectsTo"
+    },
+    {
+      "id": "em-redirect-trg-paystack-checkout-trg-cancel-page",
+      "from": "trg-paystack-checkout",
+      "to": "trg-cancel-page",
       "rel": "redirectsTo"
     },
     {

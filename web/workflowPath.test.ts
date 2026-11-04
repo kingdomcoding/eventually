@@ -130,6 +130,7 @@ test("timeline path keeps external Paystack Checkout Page at full neighbor empha
     "edgeless external checkout must share slice emphasis with payment page",
   );
   assert.equal(range.neighborIds.has("trg-success-page"), true);
+  assert.equal(range.neighborIds.has("trg-cancel-page"), true);
 });
 
 test("timeline range is the narrative slice from start through end", () => {

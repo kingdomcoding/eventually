@@ -56,6 +56,11 @@ const COMMAND_FOR_EVENT = {
     cmdName: "Mark Customer Visit to Success Page",
     slice: "slice-billing",
   },
+  "evt-customer-redirected-to-cancel": {
+    cmdId: "cmd-redirect-to-cancel-page",
+    cmdName: "Mark Customer Visit to Cancel Page",
+    slice: "slice-billing",
+  },
   "evt-payment-confirmed": { cmdId: "cmd-confirm-payment", cmdName: "Confirm Payment", slice: "slice-billing" },
   "evt-payment-imported": { cmdId: "cmd-import-payment", cmdName: "Import Payment", slice: "slice-billing" },
   "evt-manual-payment": {
@@ -455,6 +460,7 @@ const ISSUES = [
   ["scr-subscription", "cmd-cancel-subscription"],
   ["trg-pay-with-paystack", "cmd-initiate-single-charge"],
   ["trg-success-page", "cmd-redirect-to-success-page"],
+  ["trg-cancel-page", "cmd-redirect-to-cancel-page"],
   ["scr-mobile-billing", "cmd-initiate-payment"],
   ["scr-mobile-billing", "cmd-cancel-subscription"],
   ["scr-mobile-billing", "cmd-activate-subscription"],
@@ -632,6 +638,11 @@ const commands = Object.entries(COMMAND_FOR_EVENT).map(([evtId, meta]) => ({
         notes: "Records that the customer visited the Paystack payment success page.",
       }
     : {}),
+  ...(meta.cmdId === "cmd-redirect-to-cancel-page"
+    ? {
+        notes: "Records that the customer visited the Paystack payment cancel page.",
+      }
+    : {}),
 }));
 
 const triggers = [
@@ -677,6 +688,16 @@ const triggers = [
     actor: "Authenticated Learner",
     notes:
       "In-app success return after Paystack checkout; issues Mark Customer Visit to Success Page.",
+  },
+  {
+    type: "trigger",
+    id: "trg-cancel-page",
+    name: "Paystack Payment Cancel Page",
+    streamId: "lane-authenticated-learner",
+    sliceId: "slice-paystack-checkout",
+    actor: "Authenticated Learner",
+    notes:
+      "In-app cancel return after Paystack checkout; issues Mark Customer Visit to Cancel Page.",
   },
 ];
 
@@ -756,6 +777,12 @@ emEdges.push({
   id: "em-redirect-trg-paystack-checkout-trg-success-page",
   from: "trg-paystack-checkout",
   to: "trg-success-page",
+  rel: "redirectsTo",
+});
+emEdges.push({
+  id: "em-redirect-trg-paystack-checkout-trg-cancel-page",
+  from: "trg-paystack-checkout",
+  to: "trg-cancel-page",
   rel: "redirectsTo",
 });
 
