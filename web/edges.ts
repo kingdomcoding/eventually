@@ -1,4 +1,4 @@
-import type { Edge } from "@xyflow/react";
+import { MarkerType, type Edge } from "@xyflow/react";
 import type { BlueprintDocument } from "@schema/document.js";
 import { NODE_W, type NodePosition } from "./layout.js";
 
@@ -19,6 +19,8 @@ const REL_LABEL: Record<string, string> = {
 /** Base overhead clearance; each redirect steps up so arcs do not share one rail. */
 const REDIRECT_OFFSET_BASE = 40;
 const REDIRECT_OFFSET_STEP = 36;
+/** Large smoothstep bend so redirect H/V transitions read as curves, not right angles. */
+const REDIRECT_BORDER_RADIUS = 28;
 
 function handlesFor(rel: string): { sourceHandle: string; targetHandle: string } {
   if (rel === "loopsBack") return { sourceHandle: "t-out", targetHandle: "b-in" };
@@ -67,6 +69,9 @@ function isLongRangeUpdate(
 const PRIMARY_RELS = new Set(["issues", "produces", "updates", "rendersOn"]);
 const STROKE_DASH = "7 5";
 
+/** Deeper handle-normal entry so the shaft meets the arrowhead cleanly. */
+export const VERTICAL_ENTRY_EDGE_TYPE = "verticalEntry";
+
 export type BuildEdgesOptions = {
   /** When false, omit stream spine edges (ordersBefore, loopsBack). */
   includeStreamEdges?: boolean;
@@ -94,25 +99,35 @@ export function buildEdges(
     const longRange = isLongRangeUpdate(e.rel, e.from, e.to, positions);
     const isTimeline = e.rel === "ordersBefore";
     const isLoop = e.rel === "loopsBack";
-    const isPrimary = PRIMARY_RELS.has(e.rel) && !longRange && !isTimeline && !isLoop;
+    // Event→view (updates) stays main-line weight even when the span is long —
+    // longRange only softens opacity, never stroke/arrow size.
+    const isPrimary = PRIMARY_RELS.has(e.rel) && !isTimeline && !isLoop;
 
     const label = REL_LABEL[e.rel];
     const isRedirect = e.rel === "redirectsTo";
+
+    const redirectOffset = isRedirect
+      ? redirectOffsetFor(e, redirectEdges, positions)
+      : undefined;
 
     return {
       id: e.id,
       source: e.from,
       target: e.to,
-      // Redirects arc above both UI cards (top → top smoothstep), not across the gap.
-      type: isLoop || isRedirect ? "smoothstep" : "default",
+      // Redirects + loops: smoothstep overhead (top → top), staggered offset rails.
+      // All other edges: Bezier with a deepened stub into the target arrowhead.
+      type: isLoop || isRedirect ? "smoothstep" : VERTICAL_ENTRY_EDGE_TYPE,
       zIndex: isPrimary ? 6 : isLoop || isRedirect ? 3 : 2,
       ...handlesFor(e.rel),
+      // orient:"auto" rotates the arrow to the path's end tangent so the shaft
+      // enters the base squarely on Bezier, smoothstep, and redirect edges alike.
+      markerEnd: { type: MarkerType.ArrowClosed, orient: "auto" },
       animated: false,
-      ...(isRedirect
+      ...(isRedirect && redirectOffset !== undefined
         ? {
             pathOptions: {
-              offset: redirectOffsetFor(e, redirectEdges, positions),
-              borderRadius: 18,
+              offset: redirectOffset,
+              borderRadius: REDIRECT_BORDER_RADIUS,
             },
           }
         : {}),

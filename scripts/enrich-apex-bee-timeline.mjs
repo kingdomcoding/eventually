@@ -158,7 +158,7 @@ const SCREENS = [
     actor: "Authenticated Learner",
     slice: "slice-paystack-checkout",
     notes:
-      "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the Pay with Paystack Button path.",
+      "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the Subscribe with Paystack Button path.",
     bindings: [
       {
         uiField: "transaction_id",
@@ -531,12 +531,12 @@ const INITIATE_SINGLE_CHARGE_FIELDS = [
     name: "email",
     type: "string",
     description:
-      "User email from the Pay with Paystack Button. Paystack initialize requires the customer's email.",
+      "User email from the Subscribe with Paystack Button. Paystack initialize requires the customer's email.",
   },
   {
     name: "amount",
     type: "number",
-    description: "Amount to be paid in kobo, from the Pay with Paystack Button.",
+    description: "Amount to be paid in kobo, from the Subscribe with Paystack Button.",
   },
 ];
 
@@ -649,7 +649,7 @@ const triggers = [
   {
     type: "trigger",
     id: "trg-pay-with-paystack",
-    name: "Pay with Paystack Button",
+    name: "Subscribe with Paystack Button",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-billing",
     actor: "Subscriber",
@@ -682,7 +682,7 @@ const triggers = [
   {
     type: "trigger",
     id: "trg-success-page",
-    name: "Paystack Payment Success Page",
+    name: "Paystack Success Splash Page",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-paystack-checkout",
     actor: "Authenticated Learner",
@@ -692,7 +692,7 @@ const triggers = [
   {
     type: "trigger",
     id: "trg-cancel-page",
-    name: "Paystack Payment Cancel Page",
+    name: "Paystack Cancel Splash Page",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-paystack-checkout",
     actor: "Authenticated Learner",

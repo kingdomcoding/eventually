@@ -19,6 +19,7 @@ import { NODE_H, NODE_W } from "./layoutMetrics";
 import { packLayout, type NodeSize } from "./packLayout";
 import { LAYOUT_MORPH_MS, useLayoutMorph } from "./useLayoutMorph";
 import { StickyNode, type StickyData } from "./StickyNode";
+import { VerticalEntryEdge } from "./VerticalEntryEdge";
 import { computeGutterEmphasis } from "./gutterEmphasis";
 import { StreamGutter } from "./StreamGutter";
 import { usePinchZoom } from "./usePinchZoom";
@@ -78,6 +79,10 @@ function prefersReducedMotion(): boolean {
 
 const nodeTypes = {
   sticky: StickyNode,
+};
+
+const edgeTypes = {
+  verticalEntry: VerticalEntryEdge,
 };
 
 function tierStrokeOpacity(
@@ -814,24 +819,25 @@ export function BlueprintCanvas() {
         </div>
         <div className="app-header-end">
           {showLegend ? (
-            <div className="legend">
+            <div className="legend" role="group" aria-label="Node type key">
+              <span className="legend__title">Key</span>
               <span>
-                <i style={{ background: "#f5c542" }} /> event
+                <i style={{ background: "#f5c542" }} /> Event
               </span>
               <span>
-                <i style={{ background: "#4a8fd4" }} /> command
+                <i style={{ background: "#4a8fd4" }} /> Command
               </span>
               <span>
-                <i style={{ background: "#5cb85c" }} /> view
+                <i style={{ background: "#5cb85c" }} /> View
               </span>
               <span>
-                <i style={{ background: "#eceff4" }} /> screen
+                <i style={{ background: "#eceff4" }} /> Screen
               </span>
               <span>
-                <i style={{ background: "#c5d4e8" }} /> trigger
+                <i style={{ background: "#c5d4e8" }} /> Trigger
               </span>
               <span>
-                <i style={{ background: "#e7dcc6" }} /> automation
+                <i style={{ background: "#e7dcc6" }} /> Automation
               </span>
             </div>
           ) : null}
@@ -880,11 +886,12 @@ export function BlueprintCanvas() {
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
             nodesDraggable={false}
             nodesConnectable={false}
-            defaultEdgeOptions={{ type: "default" }}
+            defaultEdgeOptions={{ type: "verticalEntry" }}
             zoomOnScroll={false}
             zoomOnPinch={false}
             zoomOnDoubleClick={false}

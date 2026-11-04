@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { BlueprintDocumentSchema } from "../src/document.js";
-import { buildEdges } from "./edges.js";
+import { Position } from "@xyflow/react";
+import { buildEdges, VERTICAL_ENTRY_EDGE_TYPE } from "./edges.js";
 import { computeLayout } from "./layout.js";
 import { NODE_H } from "./layoutMetrics.js";
 import { formatParentsLabel } from "./StickyNode.js";
+import { getVerticalEntryPath } from "./VerticalEntryEdge.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const apex = BlueprintDocumentSchema.parse(
@@ -118,7 +120,7 @@ test("apex timeline places external Paystack checkout with the payment page colu
   assert.ok(success);
   assert.ok(payButton);
   // Must not park at the left spine (story index 0) — same neighborhood as payment page.
-  assert.ok(checkout.x > payButton.x, "checkout should be after Pay with Paystack");
+  assert.ok(checkout.x > payButton.x, "checkout should be after Subscribe with Paystack");
   assert.ok(Math.abs(checkout.x - payment.x) < 400, "checkout should sit near payment page");
   assert.equal(checkout.y, payment.y);
   const external = apex.nodes.find((n) => n.id === "trg-paystack-checkout");
@@ -126,11 +128,11 @@ test("apex timeline places external Paystack checkout with the payment page colu
   assert.equal(external.name, "Paystack Checkout Page");
   assert.equal(
     apex.nodes.find((n) => n.id === "trg-success-page")?.name,
-    "Paystack Payment Success Page",
+    "Paystack Success Splash Page",
   );
   assert.equal(
     apex.nodes.find((n) => n.id === "trg-cancel-page")?.name,
-    "Paystack Payment Cancel Page",
+    "Paystack Cancel Splash Page",
   );
   assert.equal(
     apex.nodes.find((n) => n.id === "evt-customer-redirected-to-success")?.name,
@@ -164,15 +166,70 @@ test("apex timeline places external Paystack checkout with the payment page colu
       e.from === "trg-paystack-checkout" &&
       e.to === "trg-success-page",
   );
-  assert.ok(successRedirect, "Paystack Checkout Page should redirect to Paystack Payment Success Page");
+  assert.ok(successRedirect, "Paystack Checkout Page should redirect to Paystack Success Splash Page");
   const cancelRedirect = apex.edges.find(
     (e) =>
       e.rel === "redirectsTo" &&
       e.from === "trg-paystack-checkout" &&
       e.to === "trg-cancel-page",
   );
-  assert.ok(cancelRedirect, "Paystack Checkout Page should redirect to Paystack Payment Cancel Page");
+  assert.ok(cancelRedirect, "Paystack Checkout Page should redirect to Paystack Cancel Splash Page");
   const flowEdges = buildEdges(apex, layout.positions);
+  assert.ok(flowEdges.length > 0);
+  for (const flowEdge of flowEdges) {
+    assert.deepEqual(
+      flowEdge.markerEnd,
+      { type: "arrowclosed", orient: "auto" },
+      `edge ${flowEdge.id} should use a closed arrow that follows the path end tangent`,
+    );
+  }
+  const updateEdges = apex.edges.filter((e) => e.rel === "updates");
+  assert.ok(updateEdges.length > 0);
+  for (const edge of updateEdges) {
+    const flow = flowEdges.find((e) => e.id === edge.id);
+    assert.ok(flow);
+    assert.equal(
+      flow.style?.strokeWidth,
+      2.5,
+      `event→view edge ${edge.id} should match main-line stroke width`,
+    );
+  }
+  const byRel = new Map<string, typeof flowEdges>();
+  for (const edge of apex.edges) {
+    const flow = flowEdges.find((e) => e.id === edge.id);
+    assert.ok(flow);
+    const list = byRel.get(edge.rel) ?? [];
+    list.push(flow);
+    byRel.set(edge.rel, list);
+  }
+  for (const rel of ["issues", "produces", "updates", "rendersOn", "ordersBefore"] as const) {
+    const list = byRel.get(rel) ?? [];
+    assert.ok(list.length > 0, `${rel} edges should exist`);
+    for (const flow of list) {
+      assert.equal(
+        flow.type,
+        VERTICAL_ENTRY_EDGE_TYPE,
+        `${rel} edge ${flow.id} should use deepened Bezier entry`,
+      );
+    }
+  }
+  for (const rel of ["redirectsTo", "loopsBack"] as const) {
+    for (const flow of byRel.get(rel) ?? []) {
+      assert.equal(flow.type, "smoothstep", `${rel} stays smoothstep`);
+    }
+  }
+  // Bottom-handle entry: end control sits directly below the target.
+  const [bottomPath] = getVerticalEntryPath(0, 100, 200, 0, Position.Top, Position.Bottom);
+  const bottomC2 = bottomPath.match(/C[-\d.]+,[-\d.]+ ([-\d.]+),([-\d.]+) 200,0$/);
+  assert.ok(bottomC2);
+  assert.equal(Number(bottomC2[1]), 200);
+  assert.ok(Number(bottomC2[2]) > 0, "bottom entry bends up from below into the arrow");
+  // Top-handle entry: end control sits directly above the target.
+  const [topPath] = getVerticalEntryPath(0, 0, 0, 100, Position.Bottom, Position.Top);
+  const topC2 = topPath.match(/C[-\d.]+,[-\d.]+ ([-\d.]+),([-\d.]+) 0,100$/);
+  assert.ok(topC2);
+  assert.equal(Number(topC2[1]), 0);
+  assert.ok(Number(topC2[2]) < 100, "top entry bends down from above into the arrow");
   const flowRedirects = [redirect, successRedirect, cancelRedirect].map((edge) => {
     const flowRedirect = flowEdges.find((e) => e.id === edge!.id);
     assert.ok(flowRedirect);
@@ -183,16 +240,22 @@ test("apex timeline places external Paystack checkout with the payment page colu
     assert.match(String(flowRedirect.style?.strokeDasharray ?? ""), /5/);
     return flowRedirect;
   });
-  const offsets = flowRedirects.map((e) => (e.pathOptions as { offset?: number } | undefined)?.offset);
+  const pathOptions = flowRedirects.map(
+    (e) => e.pathOptions as { offset?: number; borderRadius?: number } | undefined,
+  );
+  const offsets = pathOptions.map((p) => p?.offset);
   assert.equal(new Set(offsets).size, offsets.length, "redirect apex offsets must be staggered");
   assert.deepEqual(offsets, [40, 76, 112]);
+  for (const p of pathOptions) {
+    assert.equal(p?.borderRadius, 28, "redirect smoothstep corners must be distinctly rounded");
+  }
 });
 
 test("formatParentsLabel uses singular Parent and comma-separates many", () => {
   assert.equal(formatParentsLabel([]), null);
   assert.equal(formatParentsLabel(["Purchase License Page"]), "Parent: Purchase License Page");
   assert.equal(
-    formatParentsLabel(["Purchase License Page", "Paystack Payment Success Page"]),
-    "Parents: Purchase License Page, Paystack Payment Success Page",
+    formatParentsLabel(["Purchase License Page", "Paystack Success Splash Page"]),
+    "Parents: Purchase License Page, Paystack Success Splash Page",
   );
 });

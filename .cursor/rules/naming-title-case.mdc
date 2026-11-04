@@ -8,7 +8,7 @@ alwaysApply: true
 Project convention for user-facing names (views, screens, triggers, streams, actors, labels):
 
 - Use **title case**: spaced words, each major word capitalized.
-- Examples: `Initiated Transactions`, `Paystack Checkout Page`, `Authenticated Learner`, `Purchase License Page`, `Paystack Payment Success Page`.
+- Examples: `Initiated Transactions`, `Paystack Checkout Page`, `Authenticated Learner`, `Purchase License Page`, `Paystack Success Splash Page`.
 - Do **not** use lowercase labels (`initiated transactions`) or unspaced PascalCase for display names (`InitiateSingleCharge` is fine for command *ids/code* names that already follow that pattern; UI labels still prefer spaced title case when naming screens/triggers/views).
 
 Apply this when adding or renaming nodes in `samples/apex-bee.json` and when generating names in `scripts/enrich-apex-bee-timeline.mjs`.
