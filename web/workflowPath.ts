@@ -1,4 +1,5 @@
 import type { BlueprintDocument } from "@schema/document.js";
+import { narrativeSpanOf, orderedNarrativeEventIds } from "../src/narrativeOrder.js";
 import { eventDetailCluster } from "./graphIndex.js";
 
 export type WorkflowPathErrorCode =
@@ -31,18 +32,18 @@ function addAdj(adj: Map<string, string[]>, from: string, to: string) {
 }
 
 /** Partial-order reachability on one stream (then, loop-back, unordered pool). */
-function streamAdjacency(doc: BlueprintDocument, swimlaneId: string): Map<string, string[]> {
+function streamAdjacency(doc: BlueprintDocument, streamId: string): Map<string, string[]> {
   const adj = new Map<string, string[]>();
 
   for (const e of doc.edges) {
     if (e.rel !== "ordersBefore" && e.rel !== "loopsBack") continue;
     const from = doc.nodes.find((n) => n.id === e.from);
     const to = doc.nodes.find((n) => n.id === e.to);
-    if (from?.swimlaneId !== swimlaneId || to?.swimlaneId !== swimlaneId) continue;
+    if (from?.streamId !== streamId || to?.streamId !== streamId) continue;
     addAdj(adj, e.from, e.to);
   }
 
-  const shape = doc.swimlanes.find((s) => s.id === swimlaneId)?.streamShape;
+  const shape = doc.streams.find((s) => s.id === streamId)?.streamShape;
   const pool = shape?.unorderedPool;
   if (pool) {
     for (const id of pool.eventIds) addAdj(adj, pool.afterEventId, id);
@@ -90,6 +91,98 @@ function neighborIdsForPath(doc: BlueprintDocument, eventIds: ReadonlySet<string
   return out;
 }
 
+/** Inclusive narrative-order slice for Timeline. From must be at or before To. */
+export function computeTimelineRange(
+  doc: BlueprintDocument,
+  fromEventId: string | null,
+  toEventId: string | null,
+): WorkflowPathResult {
+  if (!fromEventId && !toEventId) return { status: "inactive" };
+  if (!fromEventId || !toEventId) {
+    return {
+      status: "invalid",
+      code: "missing_endpoint",
+      message: "Set both start and end events to dim the rest of the timeline.",
+    };
+  }
+
+  const fromNode = doc.nodes.find((n) => n.id === fromEventId);
+  const toNode = doc.nodes.find((n) => n.id === toEventId);
+  if (!fromNode || !toNode) {
+    return {
+      status: "invalid",
+      code: "unknown_event",
+      message: "Start or end event was not found on this blueprint.",
+    };
+  }
+  if (fromNode.type !== "event" || toNode.type !== "event") {
+    return {
+      status: "invalid",
+      code: "not_events",
+      message: "Timeline endpoints must be events.",
+    };
+  }
+
+  const order = orderedNarrativeEventIds(doc);
+  const iFrom = order.indexOf(fromEventId);
+  const iTo = order.indexOf(toEventId);
+  if (iFrom < 0 || iTo < 0) {
+    return {
+      status: "invalid",
+      code: "unknown_event",
+      message: "Start or end event is not on the timeline.",
+    };
+  }
+  if (iFrom > iTo) {
+    return {
+      status: "invalid",
+      code: "not_connected",
+      message: "Start is after the end on the timeline.",
+    };
+  }
+
+  const eventIds = new Set(order.slice(iFrom, iTo + 1));
+  const edgeIds = new Set<string>();
+  for (const e of doc.edges) {
+    if (e.rel !== "ordersBefore" && e.rel !== "loopsBack") continue;
+    if (eventIds.has(e.from) && eventIds.has(e.to)) edgeIds.add(e.id);
+  }
+
+  return {
+    status: "valid",
+    fromEventId,
+    toEventId,
+    eventIds,
+    edgeIds,
+    neighborIds: neighborIdsForPath(doc, eventIds),
+  };
+}
+
+/** Timeline prominence for a Streams selection: only the marked events, not the events between them. */
+export function timelineSelectionPath(
+  doc: BlueprintDocument,
+  selectedEventIds: readonly string[],
+): WorkflowPathResult {
+  const span = narrativeSpanOf(doc, selectedEventIds);
+  if (!span) return { status: "inactive" };
+  const range = computeTimelineRange(doc, span.from, span.to);
+  if (range.status !== "valid") return range;
+  const eventIds = new Set(selectedEventIds.filter((id) => range.eventIds.has(id)));
+  const edgeIds = new Set<string>();
+  for (const e of doc.edges) {
+    if (e.rel !== "ordersBefore" && e.rel !== "loopsBack") continue;
+    if (eventIds.has(e.from) && eventIds.has(e.to)) edgeIds.add(e.id);
+  }
+  return {
+    status: "valid",
+    fromEventId: span.from,
+    toEventId: span.to,
+    eventIds,
+    edgeIds,
+    neighborIds: neighborIdsForPath(doc, eventIds),
+  };
+}
+
 export function computeWorkflowPath(
   doc: BlueprintDocument,
   fromEventId: string | null,
@@ -121,9 +214,9 @@ export function computeWorkflowPath(
     };
   }
 
-  if (fromNode.swimlaneId !== toNode.swimlaneId) {
+  if (fromNode.streamId !== toNode.streamId) {
     const streamName =
-      doc.swimlanes.find((s) => s.id === fromNode.swimlaneId)?.name ?? fromNode.swimlaneId;
+      doc.streams.find((s) => s.id === fromNode.streamId)?.name ?? fromNode.streamId;
     return {
       status: "invalid",
       code: "not_connected",
@@ -143,7 +236,7 @@ export function computeWorkflowPath(
     };
   }
 
-  const adj = streamAdjacency(doc, fromNode.swimlaneId);
+  const adj = streamAdjacency(doc, fromNode.streamId);
   const fromReach = forwardReach(fromEventId, adj);
   if (!fromReach.has(toEventId)) {
     return {
@@ -205,18 +298,18 @@ export function workflowEventLabel(
 
 export function listWorkflowEventOptions(doc: BlueprintDocument): WorkflowEventOption[] {
   const nameCounts = eventNameCounts(doc);
-  const streamOrder = new Map(doc.swimlanes.map((s, i) => [s.id, s.order]));
+  const streamOrder = new Map(doc.streams.map((s, i) => [s.id, s.order]));
   return doc.nodes
     .filter((n): n is typeof n & { type: "event" } => n.type === "event")
     .sort(
       (a, b) =>
-        (streamOrder.get(a.swimlaneId) ?? 0) - (streamOrder.get(b.swimlaneId) ?? 0) ||
+        (streamOrder.get(a.streamId) ?? 0) - (streamOrder.get(b.streamId) ?? 0) ||
         a.timelineIndex - b.timelineIndex ||
         a.name.localeCompare(b.name),
     )
     .map((n) => {
       const duplicateName = (nameCounts.get(n.name) ?? 0) > 1;
-      const streamLabel = doc.swimlanes.find((s) => s.id === n.swimlaneId)?.name ?? "";
+      const streamLabel = doc.streams.find((s) => s.id === n.streamId)?.name ?? "";
       return {
         id: n.id,
         name: n.name,

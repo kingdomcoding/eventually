@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Partial-order semantics for one EventStore stream kind (swimlane row). */
+/** Partial-order semantics for one EventStore stream kind (stream row). */
 export const StreamShapeSchema = z.object({
   /** First append may be any one of these (mutually exclusive). */
   entryOneOf: z.array(z.string().min(1)).optional(),

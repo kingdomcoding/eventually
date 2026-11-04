@@ -1,6 +1,12 @@
 import type { BlueprintDocument } from "@schema/document.js";
 
-export const DETAIL_EDGE_RELS = new Set(["issues", "produces", "updates", "rendersOn"]);
+export const DETAIL_EDGE_RELS = new Set([
+  "issues",
+  "produces",
+  "updates",
+  "rendersOn",
+  "redirectsTo",
+]);
 
 export type GraphIndex = {
   detailAdj: Map<string, Set<string>>;
@@ -67,6 +73,20 @@ export function eventDetailCluster(doc: BlueprintDocument, eventId: string): Set
     if (e.rel === "rendersOn" && viewIds.has(e.from)) ids.add(e.to);
   }
 
+  // Modality-only UI in the same slice (e.g. external Paystack Checkout Page)
+  // stays at full emphasis with its payment/success siblings — avoids sticky--context dimming.
+  const sliceIds = new Set<string>();
+  for (const id of ids) {
+    const node = doc.nodes.find((n) => n.id === id);
+    if (node?.sliceId) sliceIds.add(node.sliceId);
+  }
+  for (const n of doc.nodes) {
+    if (!n.sliceId || !sliceIds.has(n.sliceId)) continue;
+    if (n.type === "screen" || n.type === "trigger" || n.type === "automation") {
+      ids.add(n.id);
+    }
+  }
+
   return ids;
 }
 
@@ -98,6 +118,10 @@ function screenEmphasisClosure(doc: BlueprintDocument, screenId: string): Set<st
   for (const e of doc.edges) {
     if (e.rel === "issues" && e.from === screenId) ids.add(e.to);
     if (e.rel === "rendersOn" && e.to === screenId) ids.add(e.from);
+    if (e.rel === "redirectsTo" && (e.from === screenId || e.to === screenId)) {
+      ids.add(e.from);
+      ids.add(e.to);
+    }
   }
   return ids;
 }
@@ -115,6 +139,7 @@ export function focusEmphasisClosure(doc: BlueprintDocument, anchorId: string): 
     case "view":
       return viewEmphasisClosure(doc, anchorId);
     case "screen":
+    case "trigger":
       return screenEmphasisClosure(doc, anchorId);
     default:
       return new Set([anchorId]);
@@ -163,6 +188,7 @@ export function focusFitClosure(doc: BlueprintDocument, anchorId: string): Set<s
       return focusFitClosureFromEvent(doc, anchorId);
     case "command":
     case "screen":
+    case "trigger":
       return focusEmphasisClosure(doc, anchorId);
     default:
       return new Set([anchorId]);

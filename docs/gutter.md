@@ -1,4 +1,4 @@
-# Swimlane gutter
+# Stream gutter
 
 The left gutter shares React Flow’s vertical transform: row `top = row.y × zoom + panY`, `height = LANE_ROW_HEIGHT × zoom`.
 
@@ -8,4 +8,4 @@ Band titles (**User categories**, **Commands · Views**, **Events**) render in i
 
 Emphasis (active / present / idle) is opacity; band kind uses a left accent bar and subtle fill.
 
-The **Streams** band (`events` in the schema) uses one gutter row per stream swimlane; each row shows the stream name and `streamPattern` (e.g. `subscription-{userId}`). **ui** lanes remain per actor/role.
+The **Streams** band (`events` in the schema) uses one gutter row per stream; each row shows the stream name and `streamPattern` (e.g. `subscription-{userId}`). **ui** lanes remain per actor/role.

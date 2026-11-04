@@ -13,11 +13,11 @@ import {
   NODE_W,
   SCREEN_STAGGER_X,
   SLICE_PAD,
-  SWIMLANE_GUTTER,
+  STREAM_GUTTER,
   yForLaneRow,
   type LayoutResult,
   type NodePosition,
-  type SwimlaneRow,
+  type StreamRow,
 } from "./layoutMetrics.js";
 import { layoutAllStreams } from "./streamLayout.js";
 import { computeDesignLayout } from "./designLayout.js";
@@ -38,11 +38,11 @@ export {
   NODE_W,
   SCREEN_STAGGER_X,
   SLICE_PAD,
-  SWIMLANE_GUTTER,
+  STREAM_GUTTER,
   yForLaneRow,
   type LayoutResult,
   type NodePosition,
-  type SwimlaneRow,
+  type StreamRow,
 };
 
 const STREAM_STACK_GAP = 96;
@@ -102,18 +102,18 @@ function buildTimelineX(
       streamShape.layoutColumns.map((_, i) => i)
     : [...new Set(events.map((e) => e.timelineIndex))].sort((a, b) => a - b);
   const xAt = new Map<number, number>();
-  let x = SWIMLANE_GUTTER + MARGIN_X;
+  let x = STREAM_GUTTER + MARGIN_X;
   for (const ti of indices) {
     xAt.set(ti, x);
     x += columnContentWidth(doc, ti, events, viewsByAnchor, maxScreensAtTi) + INTER_COL_GAP;
   }
-  const fallback = xAt.get(indices[0] ?? 0) ?? SWIMLANE_GUTTER + MARGIN_X;
+  const fallback = xAt.get(indices[0] ?? 0) ?? STREAM_GUTTER + MARGIN_X;
   return (timelineIndex: number) => xAt.get(timelineIndex) ?? fallback;
 }
 
 function screenTimelineIndex(
   doc: BlueprintDocument,
-  n: BlueprintNode & { type: "screen" },
+  n: BlueprintNode,
   events: Array<BlueprintNode & { type: "event" }>,
 ): number {
   const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
@@ -142,9 +142,9 @@ function maxScreensPerTimeline(
 ): Map<number, number> {
   const perLaneTi = new Map<string, number>();
   for (const n of doc.nodes) {
-    if (n.type !== "screen") continue;
+    if (n.type !== "screen" && n.type !== "automation" && n.type !== "trigger") continue;
     const ti = screenTimelineIndex(doc, n, events);
-    const k = `${n.swimlaneId}|${ti}`;
+    const k = `${n.streamId}|${ti}`;
     perLaneTi.set(k, (perLaneTi.get(k) ?? 0) + 1);
   }
   const maxAtTi = new Map<number, number>();
@@ -155,12 +155,12 @@ function maxScreensPerTimeline(
   return maxAtTi;
 }
 
-function buildSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
-  const rows: SwimlaneRow[] = [];
+function buildStreamRows(doc: BlueprintDocument): StreamRow[] {
+  const rows: StreamRow[] = [];
   let y = 48;
 
   for (const band of BAND_ORDER) {
-    const lanes = doc.swimlanes.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
+    const lanes = doc.streams.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
     if (!lanes.length) continue;
 
     for (const lane of lanes) {
@@ -201,23 +201,23 @@ function anchorEventForView(
 }
 
 function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
-  const swimlaneRows = buildSwimlaneRows(doc);
-  const yBySwimlane = new Map(swimlaneRows.map((r) => [r.id, r.y]));
-  const yUi = swimlaneRows.find((r) => r.band === "ui")?.y ?? 48;
-  const yMid = swimlaneRows.find((r) => r.band === "commandView")?.y ?? 220;
-  const yEvtFallback = swimlaneRows.find((r) => r.band === "events")?.y ?? 400;
+  const streamRows = buildStreamRows(doc);
+  const yByStream = new Map(streamRows.map((r) => [r.id, r.y]));
+  const yUi = streamRows.find((r) => r.band === "ui")?.y ?? 48;
+  const yMid = streamRows.find((r) => r.band === "commandView")?.y ?? 220;
+  const yEvtFallback = streamRows.find((r) => r.band === "events")?.y ?? 400;
 
-  function rowY(swimlaneId: string, band: "ui" | "events"): number {
-    const y = yBySwimlane.get(swimlaneId);
+  function rowY(streamId: string, band: "ui" | "events"): number {
+    const y = yByStream.get(streamId);
     if (y !== undefined) return y;
     return band === "ui" ? yUi : yEvtFallback;
   }
 
-  const laneHeightById = new Map(swimlaneRows.map((r) => [r.id, r.height]));
+  const laneHeightById = new Map(streamRows.map((r) => [r.id, r.height]));
 
-  function eventRowY(swimlaneId: string): number {
-    const y = yBySwimlane.get(swimlaneId) ?? yEvtFallback;
-    const h = laneHeightById.get(swimlaneId) ?? LANE_ROW_HEIGHT;
+  function eventRowY(streamId: string): number {
+    const y = yByStream.get(streamId) ?? yEvtFallback;
+    const h = laneHeightById.get(streamId) ?? LANE_ROW_HEIGHT;
     return yForLaneRow(y, h);
   }
 
@@ -242,18 +242,18 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
   }
 
   const eventsByStream = new Map<string, Array<BlueprintNode & { type: "event" }>>();
-  const { positions: streamEventPos } = layoutAllStreams(doc, swimlaneRows);
+  const { positions: streamEventPos } = layoutAllStreams(doc, streamRows);
 
   for (const event of events) {
-    const list = eventsByStream.get(event.swimlaneId) ?? [];
+    const list = eventsByStream.get(event.streamId) ?? [];
     list.push(event);
-    eventsByStream.set(event.swimlaneId, list);
+    eventsByStream.set(event.streamId, list);
   }
 
   const sliceXByStream = new Map<string, (timelineIndex: number) => number>();
   for (const [streamId, streamEvents] of eventsByStream) {
     const maxScreensAtTi = maxScreensPerTimeline(doc, streamEvents);
-    const laneShape = doc.swimlanes.find((s) => s.id === streamId)?.streamShape;
+    const laneShape = doc.streams.find((s) => s.id === streamId)?.streamShape;
     sliceXByStream.set(
       streamId,
       buildTimelineX(doc, streamEvents, viewsByAnchor, maxScreensAtTi, laneShape),
@@ -262,16 +262,16 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
 
   const defaultSliceX: (timelineIndex: number) => number =
     sliceXByStream.values().next().value ??
-    ((timelineIndex: number) => SWIMLANE_GUTTER + MARGIN_X + timelineIndex * (MIN_COL_WIDTH + INTER_COL_GAP));
+    ((timelineIndex: number) => STREAM_GUTTER + MARGIN_X + timelineIndex * (MIN_COL_WIDTH + INTER_COL_GAP));
 
-  function xOnStream(swimlaneId: string, timelineIndex: number): number {
-    return (sliceXByStream.get(swimlaneId) ?? defaultSliceX)(timelineIndex);
+  function xOnStream(streamId: string, timelineIndex: number): number {
+    return (sliceXByStream.get(streamId) ?? defaultSliceX)(timelineIndex);
   }
 
   function timelineXForSlice(sliceId: string): number {
     const inSlice = doc.nodes.filter((n) => n.sliceId === sliceId);
     const evt = inSlice.find((n) => n.type === "event");
-    if (evt && evt.type === "event") return xOnStream(evt.swimlaneId, evt.timelineIndex);
+    if (evt && evt.type === "event") return xOnStream(evt.streamId, evt.timelineIndex);
     const linked = doc.edges
       .filter((e) => e.rel === "issues" && inSlice.some((n) => n.id === e.from))
       .map((e) => positions.get(e.to))
@@ -282,8 +282,8 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
 
   const screenSlot = new Map<string, number>();
 
-  function placeScreen(id: string, baseX: number, swimlaneId: string, laneRowY: number) {
-    const key = `${swimlaneId}|${baseX}`;
+  function placeScreen(id: string, baseX: number, streamId: string, laneRowY: number) {
+    const key = `${streamId}|${baseX}`;
     const idx = screenSlot.get(key) ?? 0;
     screenSlot.set(key, idx + 1);
     positions.set(id, { x: baseX + idx * SCREEN_STAGGER_X, y: yForLaneRow(laneRowY) });
@@ -292,9 +292,9 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
   for (const event of events) {
     const cmd = producingCommand(doc, event.id);
     const streamPos = streamEventPos.get(event.id);
-    const sliceX = sliceXByStream.get(event.swimlaneId) ?? defaultSliceX;
+    const sliceX = sliceXByStream.get(event.streamId) ?? defaultSliceX;
     const anchorX = streamPos?.x ?? sliceX(event.timelineIndex);
-    const anchorY = streamPos?.y ?? eventRowY(event.swimlaneId);
+    const anchorY = streamPos?.y ?? eventRowY(event.streamId);
 
     if (cmd) {
       positions.set(cmd.id, { x: anchorX, y: yMidPlaced });
@@ -321,34 +321,37 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
       positions.set(n.id, n.layout);
       continue;
     }
-    if (n.type === "screen") {
-      const laneTop = rowY(n.swimlaneId, "ui");
+    if (n.type === "screen" || n.type === "automation" || n.type === "trigger") {
+      const laneTop = rowY(n.streamId, "ui");
       const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
       if (issue) {
         const cmdPos = positions.get(issue.to);
-        placeScreen(n.id, cmdPos?.x ?? defaultSliceX(0), n.swimlaneId, laneTop);
+        placeScreen(n.id, cmdPos?.x ?? defaultSliceX(0), n.streamId, laneTop);
         continue;
       }
       const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
       if (render) {
         const viewPos = positions.get(render.from);
-        placeScreen(n.id, viewPos?.x ?? defaultSliceX(0), n.swimlaneId, laneTop);
+        placeScreen(n.id, viewPos?.x ?? defaultSliceX(0), n.streamId, laneTop);
         continue;
       }
-      placeScreen(n.id, timelineXForSlice(n.sliceId), n.swimlaneId, laneTop);
+      placeScreen(n.id, timelineXForSlice(n.sliceId), n.streamId, laneTop);
     }
   }
 
-  return { positions, swimlaneRows };
+  return { positions, streamRows };
 }
 
-export function computeLayout(doc: BlueprintDocument, mode: DiagramMode = "design"): LayoutResult {
+export function computeLayout(
+  doc: BlueprintDocument,
+  mode: DiagramMode = "design",
+): LayoutResult {
   if (mode === "design") return computeDesignLayout(doc);
   if (mode === "timeline") return computeTimelineLayout(doc);
   return computeStreamLayout(doc);
 }
 
-export function computePositions(doc: BlueprintDocument, mode: DiagramMode = "swimlane"): Map<string, NodePosition> {
+export function computePositions(doc: BlueprintDocument, mode: DiagramMode = "stream"): Map<string, NodePosition> {
   return computeLayout(doc, mode).positions;
 }
 

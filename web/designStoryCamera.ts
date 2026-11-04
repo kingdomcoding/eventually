@@ -6,7 +6,9 @@ export const DESIGN_BOARD_MIN_ZOOM = 0.45;
 export const DESIGN_BOARD_PADDING = 0.12;
 
 export function designScreenNodeIds(doc: BlueprintDocument): string[] {
-  return doc.nodes.filter((n) => n.type === "screen").map((n) => n.id);
+  return doc.nodes
+    .filter((n) => n.type === "screen" || n.type === "automation" || n.type === "trigger")
+    .map((n) => n.id);
 }
 
 /** Fit all user-category rows and screen stickies in the pane. */
@@ -38,7 +40,7 @@ export function designBoardViewport(
     maxY = Math.max(maxY, p.y + NODE_H);
   }
 
-  const uiRows = layout.swimlaneRows.filter((r) => r.band === "ui");
+  const uiRows = layout.streamRows.filter((r) => r.band === "ui");
   if (uiRows.length) {
     minY = Math.min(minY, uiRows[0]!.y);
     maxY = Math.max(maxY, uiRows[uiRows.length - 1]!.yLine);

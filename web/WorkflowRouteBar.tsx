@@ -145,9 +145,9 @@ function WorkflowRouteBarComponent({
 
   const routeActive = fromEventId && toEventId;
   const statusLine = useMemo(() => {
-    if (!routeActive) return "Set start and end events to highlight a then-chain on the map.";
+    if (!routeActive) return "Set From and To to dim events outside that stretch.";
     if (path.status === "valid") {
-      return `Route — ${path.eventIds.size} event${path.eventIds.size === 1 ? "" : "s"} on then-chain (all branches included)`;
+      return `${path.eventIds.size} event${path.eventIds.size === 1 ? "" : "s"} in range. The rest stay dimmed.`;
     }
     if (path.status === "invalid") return path.message;
     return "";
@@ -182,7 +182,7 @@ function WorkflowRouteBarComponent({
         </p>
         {routeActive ? (
           <button type="button" className="workflow-bar__clear" onClick={onClear}>
-            Clear route
+            Clear
           </button>
         ) : null}
       </div>

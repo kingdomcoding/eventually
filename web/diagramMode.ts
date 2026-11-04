@@ -1,15 +1,15 @@
 import type { DiagramMode } from "./sessionTypes.js";
 
-/** Legacy persisted values before Design mode. */
-const LEGACY_SWIMLANE = "stream";
+/** Persisted before the mode was renamed from swimlanes to streams. */
+const LEGACY_MODE = "swimlane";
 
-/** Canonical navigator order: Design → Swimlanes → Timeline. */
-export const DIAGRAM_MODE_ORDER: readonly DiagramMode[] = ["design", "swimlane", "timeline"];
+/** Canonical navigator order: Design → Streams → Timeline. */
+export const DIAGRAM_MODE_ORDER: readonly DiagramMode[] = ["design", "stream", "timeline"];
 
 export function normalizeDiagramMode(raw: unknown): DiagramMode {
   if (raw === "design") return "design";
   if (raw === "timeline") return "timeline";
-  if (raw === "swimlane" || raw === LEGACY_SWIMLANE) return "swimlane";
+  if (raw === "stream" || raw === LEGACY_MODE) return "stream";
   return "design";
 }
 
@@ -19,8 +19,8 @@ export function nextDiagramMode(mode: DiagramMode): DiagramMode {
   return next ?? "design";
 }
 
-export function isSwimlaneMode(mode: DiagramMode): boolean {
-  return mode === "swimlane";
+export function isStreamMode(mode: DiagramMode): boolean {
+  return mode === "stream";
 }
 
 export function isDesignMode(mode: DiagramMode): boolean {

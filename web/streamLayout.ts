@@ -4,10 +4,10 @@ import type { BlueprintNode } from "@schema/nodes.js";
 import {
   NODE_W,
   NODE_H,
-  SWIMLANE_GUTTER,
+  STREAM_GUTTER,
   MARGIN_X,
   yForLaneRow,
-  type SwimlaneRow,
+  type StreamRow,
 } from "./layoutMetrics.js";
 
 const COL_GAP = 300;
@@ -20,11 +20,11 @@ export type StreamLayoutResult = {
 
 function laneEvents(
   doc: BlueprintDocument,
-  swimlaneId: string,
+  streamId: string,
 ): Array<BlueprintNode & { type: "event" }> {
   return doc.nodes.filter(
     (n): n is BlueprintNode & { type: "event" } =>
-      n.type === "event" && n.swimlaneId === swimlaneId,
+      n.type === "event" && n.streamId === streamId,
   );
 }
 
@@ -43,7 +43,7 @@ function layoutFromColumns(
   const positions = new Map<string, { x: number; y: number }>();
   const spineY = yForLaneRow(rowY, laneHeight);
 
-  let xCursor = SWIMLANE_GUTTER + MARGIN_X;
+  let xCursor = STREAM_GUTTER + MARGIN_X;
 
   columns.forEach((colIds, colIndex) => {
     const isLast = colIndex === columns.length - 1;
@@ -70,7 +70,7 @@ function layoutLinearSpine(
   out: Map<string, { x: number; y: number }>,
 ) {
   const sorted = [...events].sort((a, b) => a.timelineIndex - b.timelineIndex);
-  let x = SWIMLANE_GUTTER + MARGIN_X;
+  let x = STREAM_GUTTER + MARGIN_X;
   const baseY = yForLaneRow(rowY, laneHeight);
   for (const e of sorted) {
     out.set(e.id, { x, y: baseY });
@@ -79,7 +79,7 @@ function layoutLinearSpine(
 }
 
 function layoutStreamRow(
-  row: SwimlaneRow,
+  row: StreamRow,
   shape: StreamShape | undefined,
   events: Array<BlueprintNode & { type: "event" }>,
 ): Map<string, { x: number; y: number }> {
@@ -94,12 +94,12 @@ function layoutStreamRow(
 
 export function layoutAllStreams(
   doc: BlueprintDocument,
-  swimlaneRows: SwimlaneRow[],
+  streamRows: StreamRow[],
 ): StreamLayoutResult {
   const positions = new Map<string, { x: number; y: number }>();
-  const rowById = new Map(swimlaneRows.map((r) => [r.id, r]));
+  const rowById = new Map(streamRows.map((r) => [r.id, r]));
 
-  for (const lane of doc.swimlanes.filter((s) => s.band === "events")) {
+  for (const lane of doc.streams.filter((s) => s.band === "events")) {
     const row = rowById.get(lane.id);
     if (!row) continue;
     const events = laneEvents(doc, lane.id);

@@ -1,8 +1,8 @@
 import { memo, useMemo } from "react";
-import type { SwimlaneBand } from "@schema/document.js";
-import type { SwimlaneRow } from "./layout.js";
-import { SWIMLANE_GUTTER } from "./layout.js";
-import { BAND_LABEL } from "./swimlaneLabels.js";
+import type { StreamBand } from "@schema/document.js";
+import type { StreamRow } from "./layout.js";
+import { STREAM_GUTTER } from "./layout.js";
+import { BAND_LABEL } from "./streamLabels.js";
 import type { GutterEmphasisState } from "./gutterEmphasis.js";
 import {
   bandHasVisibleGutterRows,
@@ -11,7 +11,7 @@ import {
   upperCollapsibleBandsHidden,
   visibleGutterDividers,
 } from "./gutterEmphasis.js";
-import { swimlaneRowLabel, swimlaneRowLabelNamed } from "./swimlaneLabels.js";
+import { streamRowLabel, streamRowLabelNamed } from "./streamLabels.js";
 import {
   allLaneRowsScreen,
   bandGapScreen,
@@ -21,26 +21,30 @@ import {
   type FlowViewport,
 } from "./gutterLayout.js";
 
-export type SwimlaneGutterProps = {
-  rows: SwimlaneRow[];
+export type StreamGutterProps = {
+  rows: StreamRow[];
   viewport: FlowViewport;
   gutterHeight: number;
   emphasis: GutterEmphasisState;
   showAll: boolean;
-  bandLabelOverrides?: Partial<Record<SwimlaneBand, string>>;
+  bandLabelOverrides?: Partial<Record<StreamBand, string>>;
   /** Timeline: row tags only — no band-gap labels or band chips on rows. */
   hideBandLabels?: boolean;
+  /** Streams mode: event-stream rows that contain a marked event. */
+  selectedStreamIds?: ReadonlySet<string>;
+  /** Streams mode: mark or clear every event on this stream. */
+  onSelectStream?: (streamId: string) => void;
 };
 
 function emphasisClass(level: "active" | "present" | "idle"): string {
   return `lane-gutter-emphasis--${level}`;
 }
 
-function bandClass(band: SwimlaneBand): string {
+function bandClass(band: StreamBand): string {
   return `lane-gutter-band--${band}`;
 }
 
-function SwimlaneGutterComponent({
+function StreamGutterComponent({
   rows,
   viewport,
   gutterHeight,
@@ -48,8 +52,10 @@ function SwimlaneGutterComponent({
   showAll,
   bandLabelOverrides,
   hideBandLabels = false,
-}: SwimlaneGutterProps) {
-  const bandLabel = (band: SwimlaneBand) => bandLabelOverrides?.[band] ?? BAND_LABEL[band];
+  selectedStreamIds,
+  onSelectStream,
+}: StreamGutterProps) {
+  const bandLabel = (band: StreamBand) => bandLabelOverrides?.[band] ?? BAND_LABEL[band];
   const laneScreens = useMemo(() => allLaneRowsScreen(rows, viewport), [rows, viewport]);
 
   const gapScreens = useMemo(() => {
@@ -57,7 +63,7 @@ function SwimlaneGutterComponent({
   }, [rows, viewport]);
 
   const gapLabelVisible = useMemo(() => {
-    const map = new Map<SwimlaneBand, boolean>();
+    const map = new Map<StreamBand, boolean>();
     for (const gap of gapScreens) {
       if (!bandHasVisibleGutterRows(rows, gap.band, emphasis.byLaneTier, showAll)) {
         map.set(gap.band, false);
@@ -72,7 +78,7 @@ function SwimlaneGutterComponent({
   }, [gapScreens, gutterHeight, emphasis.byLaneTier, showAll]);
 
   const bandChipRowId = useMemo(() => {
-    const map = new Map<SwimlaneBand, string>();
+    const map = new Map<StreamBand, string>();
     for (const row of rows) {
       if (map.has(row.band)) continue;
       const tier = emphasis.byLaneTier.get(row.id) ?? "hidden";
@@ -96,7 +102,7 @@ function SwimlaneGutterComponent({
   return (
     <div
       className={`lane-gutter${timelineOnly ? " lane-gutter--timeline-only" : ""}`}
-      style={{ width: SWIMLANE_GUTTER }}
+      style={{ width: STREAM_GUTTER }}
       aria-hidden
     >
       <div className="lane-gutter-dividers">
@@ -137,7 +143,9 @@ function SwimlaneGutterComponent({
           const laneTier = emphasis.byLaneTier.get(row.id) ?? "hidden";
           if (!gutterRowVisible(row.band, laneTier, showAll)) return null;
 
-          const named = swimlaneRowLabelNamed(row.band);
+          const named = streamRowLabelNamed(row.band);
+          const selectable = Boolean(onSelectStream && row.band === "events");
+          const streamSelected = selectedStreamIds?.has(row.id) ?? false;
           const rowEm = emphasis.byLaneId.get(row.id) ?? "idle";
           const showBandChip =
             !hideBandLabels &&
@@ -148,7 +156,7 @@ function SwimlaneGutterComponent({
           return (
             <div
               key={row.id}
-              className={`lane-gutter-row ${bandClass(row.band)} ${emphasisClass(rowEm)}`}
+              className={`lane-gutter-row ${bandClass(row.band)} ${emphasisClass(rowEm)}${streamSelected ? " is-selected" : ""}`}
               style={{ top: lane.top, height: lane.height }}
             >
               {showBandChip ? (
@@ -158,12 +166,33 @@ function SwimlaneGutterComponent({
                   {bandLabel(row.band)}
                 </div>
               ) : null}
-              <div className={`lane-gutter-label${named ? " lane-gutter-label--named" : ""}`}>
-                <span className="lane-gutter-label__title">{swimlaneRowLabel(row.band, row.name)}</span>
-                {row.streamPattern ? (
-                  <span className="lane-gutter-label__pattern">{row.streamPattern}</span>
-                ) : null}
-              </div>
+              {selectable ? (
+                <button
+                  type="button"
+                  className={`lane-gutter-label lane-gutter-select${named ? " lane-gutter-label--named" : ""}`}
+                  aria-pressed={streamSelected}
+                  onClick={(event) => {
+                    if (event.detail > 1) return;
+                    onSelectStream?.(row.id);
+                  }}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                >
+                  <span className="lane-gutter-label__title">{streamRowLabel(row.band, row.name)}</span>
+                  {row.streamPattern ? (
+                    <span className="lane-gutter-label__pattern">{row.streamPattern}</span>
+                  ) : null}
+                </button>
+              ) : (
+                <div className={`lane-gutter-label${named ? " lane-gutter-label--named" : ""}`}>
+                  <span className="lane-gutter-label__title">{streamRowLabel(row.band, row.name)}</span>
+                  {row.streamPattern ? (
+                    <span className="lane-gutter-label__pattern">{row.streamPattern}</span>
+                  ) : null}
+                </div>
+              )}
             </div>
           );
         })}
@@ -172,4 +201,4 @@ function SwimlaneGutterComponent({
   );
 }
 
-export const SwimlaneGutter = memo(SwimlaneGutterComponent);
+export const StreamGutter = memo(StreamGutterComponent);

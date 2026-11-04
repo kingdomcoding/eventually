@@ -6,7 +6,7 @@ import type { DisplayTier, PreviewPhase } from "./viewMode";
 
 const PIN_CLICK_DELAY_MS = 280;
 
-const FOCUS_TOGGLE_KINDS = new Set(["command", "view", "screen"]);
+const FOCUS_TOGGLE_KINDS = new Set(["command", "view", "screen", "trigger"]);
 
 export function useStickyClickDispatch(options: {
   previewPhase: PreviewPhase;

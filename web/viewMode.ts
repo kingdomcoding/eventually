@@ -10,7 +10,7 @@ export type { DiagramMode };
 
 export type FocusState = {
   diagramMode: DiagramMode;
-  /** When true, timeline layout is active but command/view/screen stack stays swimlane-hidden until morph ends. */
+  /** When true, timeline layout is active but command/view/screen stack stays stream-hidden until morph ends. */
   timelineStackDeferred?: boolean;
   showAll: boolean;
   focusAnchorId: string | null;
@@ -24,7 +24,7 @@ export type PreviewPhase = "idle" | "active" | "leaving";
 
 export type DisplayTier = "hidden" | "context" | "preview" | "full";
 
-const DETAIL_RELS = new Set(["issues", "produces", "updates", "rendersOn"]);
+const DETAIL_RELS = new Set(["issues", "produces", "updates", "rendersOn", "redirectsTo"]);
 
 export function connectedNodeIds(doc: BlueprintDocument, eventId: string): Set<string> {
   return eventDetailCluster(doc, eventId);
@@ -128,15 +128,23 @@ export function nodeDisplayTier(
   if (!n) return "hidden";
 
   if (state.diagramMode === "design") {
-    return n.type === "screen" ? "full" : "hidden";
+    return n.type === "screen" || n.type === "automation" || n.type === "trigger" ? "full" : "hidden";
+  }
+
+  if (state.diagramMode === "stream") {
+    if (n.type !== "event") return "hidden";
+    if (state.openEventIds.size === 0) return "full";
+    return state.openEventIds.has(nodeId) ? "full" : "context";
+  }
+
+  if (state.diagramMode === "timeline" && workflowValid(state)) {
+    const wp = state.workflowPath;
+    const inRange = wp.eventIds.has(nodeId) || wp.neighborIds.has(nodeId);
+    if (!stackExpanded(state) && n.type !== "event") return "hidden";
+    return inRange ? "full" : "context";
   }
 
   if (stackExpanded(state)) {
-    if (workflowValid(state)) {
-      const wf = workflowNodeTier(doc, nodeId, state, previewPhase);
-      if (wf === "full") return "full";
-      return "context";
-    }
     return "full";
   }
 
@@ -220,6 +228,14 @@ export function edgeDisplayTier(
 
   if (state.diagramMode === "design") return "hidden";
 
+  if (state.diagramMode === "stream") {
+    if (be.rel !== "ordersBefore" && be.rel !== "loopsBack") return "hidden";
+    if (state.openEventIds.size === 0) return "full";
+    const fromIn = state.openEventIds.has(be.from);
+    const toIn = state.openEventIds.has(be.to);
+    return fromIn && toIn ? "full" : "context";
+  }
+
   if (workflowValid(state)) {
     const wp = state.workflowPath;
     if (be.rel === "ordersBefore") {
@@ -234,7 +250,14 @@ export function edgeDisplayTier(
     return "context";
   }
 
-  if (stackExpanded(state)) return "full";
+  if (stackExpanded(state)) {
+    if (state.diagramMode === "timeline" && workflowValid(state)) {
+      const fromTier = nodeDisplayTier(doc, be.from, state, previewPhase);
+      const toTier = nodeDisplayTier(doc, be.to, state, previewPhase);
+      if (fromTier === "hidden" || toTier === "hidden") return "hidden";
+    }
+    return "full";
+  }
 
   if (be.rel === "ordersBefore") {
     return state.focusAnchorId || boardIsExpanded(state) || focusHold(state) ? "context" : "full";

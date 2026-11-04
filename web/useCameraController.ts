@@ -7,13 +7,13 @@ import {
   eventTimelineNodeIds,
   focusFitClosure,
 } from "./graphIndex.js";
-import { computeWorkflowPath } from "./workflowPath.js";
+import { computeTimelineRange, computeWorkflowPath } from "./workflowPath.js";
 import type { LayoutResult } from "./layout.js";
 import type { CameraIntent } from "./sessionState.js";
 import type { FocusState, PreviewPhase } from "./viewMode.js";
 import { visibleDiagramNodeIds } from "./viewMode.js";
 import { DESIGN_BOARD_PADDING, designBoardViewport, designScreenNodeIds } from "./designStoryCamera.js";
-import { SWIMLANE_STORY_PADDING, swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
+import { STREAM_STORY_PADDING, streamStoryViewport } from "./streamStoryCamera.js";
 
 const FOCUS_DEBOUNCE_MS = 80;
 const DEFAULT_FIT_MS = 280;
@@ -83,9 +83,13 @@ export function useCameraController(options: {
         case "FrameFullBoard":
           return allStickyNodeIds(doc);
         case "FrameWorkflowPath": {
-          const path = computeWorkflowPath(doc, intent.fromEventId, intent.toEventId);
+          const mode = getFocusState().diagramMode;
+          const path =
+            mode === "timeline"
+              ? computeTimelineRange(doc, intent.fromEventId, intent.toEventId)
+              : computeWorkflowPath(doc, intent.fromEventId, intent.toEventId);
           if (path.status !== "valid") return eventTimelineNodeIds(doc);
-          return [...path.eventIds];
+          return mode === "timeline" ? [...path.neighborIds] : [...path.eventIds];
         }
         default:
           return [];
@@ -107,18 +111,18 @@ export function useCameraController(options: {
 
       const padding = fitPaddingForIntent(intent);
       const mode = getFocusState().diagramMode;
-      const swimlaneStory = intent.type === "FrameStoryTimeline" && mode === "swimlane";
+      const streamStory = intent.type === "FrameStoryTimeline" && mode === "stream";
       const designBoard = intent.type === "FrameDesignBoard" && mode === "design";
 
       requestAnimationFrame(() => {
-        if (swimlaneStory) {
+        if (streamStory) {
           const { width, height } = getFlowPaneSize();
-          const vp = swimlaneStoryViewport(
+          const vp = streamStoryViewport(
             layout,
             doc,
             width,
             height,
-            SWIMLANE_STORY_PADDING,
+            STREAM_STORY_PADDING,
             minZoom,
             maxZoom,
           );

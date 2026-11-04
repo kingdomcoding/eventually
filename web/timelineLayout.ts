@@ -1,6 +1,6 @@
 import type { BlueprintDocument } from "@schema/document.js";
 import type { BlueprintNode } from "@schema/nodes.js";
-import { storyIndexByEventId, storyIndexForEvent } from "../src/narrativeOrder.js";
+import { storyIndexForEvent } from "../src/narrativeOrder.js";
 import {
   BAND_GAP,
   GAP_AFTER_COMMAND,
@@ -11,20 +11,20 @@ import {
   NODE_W,
   SCREEN_STAGGER_X,
   SLICE_PAD,
-  SWIMLANE_GUTTER,
+  STREAM_GUTTER,
   yForLaneRow,
   type LayoutResult,
   type NodePosition,
-  type SwimlaneRow,
+  type StreamRow,
 } from "./layoutMetrics.js";
 
 const TIMELINE_EVENTS_ROW_ID = "__timeline_events__";
-export const TIMELINE_SCREENS_ROW_ID = "__timeline_screens__";
+export const TIMELINE_TRIGGERS_ROW_ID = "__timeline_triggers__";
 
 const BAND_ORDER = ["ui", "commandView", "events"] as const;
 
-function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
-  const rows: SwimlaneRow[] = [];
+function buildTimelineStreamRows(doc: BlueprintDocument): StreamRow[] {
+  const rows: StreamRow[] = [];
   let y = 48;
 
   for (const band of BAND_ORDER) {
@@ -44,8 +44,8 @@ function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
 
     if (band === "ui") {
       rows.push({
-        id: TIMELINE_SCREENS_ROW_ID,
-        name: "Screens",
+        id: TIMELINE_TRIGGERS_ROW_ID,
+        name: "Triggers",
         band: "ui",
         order: 0,
         y,
@@ -57,7 +57,7 @@ function buildTimelineSwimlaneRows(doc: BlueprintDocument): SwimlaneRow[] {
     }
 
     if (band === "commandView") {
-      const lanes = doc.swimlanes.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
+      const lanes = doc.streams.filter((s) => s.band === band).sort((a, b) => a.order - b.order);
       const lane = lanes[0];
       if (lane) {
         rows.push({
@@ -138,18 +138,18 @@ function buildStoryX(
   storyIndices: number[],
 ): (storyIndex: number) => number {
   const xAt = new Map<number, number>();
-  let x = SWIMLANE_GUTTER + MARGIN_X;
+  let x = STREAM_GUTTER + MARGIN_X;
   for (const si of storyIndices) {
     xAt.set(si, x);
     x += columnContentWidthAtStoryIndex(doc, si, events, viewsByAnchor, maxScreensAtSi) + INTER_COL_GAP;
   }
-  const fallback = xAt.get(storyIndices[0] ?? 0) ?? SWIMLANE_GUTTER + MARGIN_X;
+  const fallback = xAt.get(storyIndices[0] ?? 0) ?? STREAM_GUTTER + MARGIN_X;
   return (storyIndex: number) => xAt.get(storyIndex) ?? fallback;
 }
 
 function screenStoryIndex(
   doc: BlueprintDocument,
-  n: BlueprintNode & { type: "screen" },
+  n: BlueprintNode,
   events: Array<BlueprintNode & { type: "event" }>,
 ): number {
   const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
@@ -169,7 +169,27 @@ function screenStoryIndex(
   }
   const inSlice = doc.nodes.filter((x) => x.sliceId === n.sliceId);
   const evt = inSlice.find((x) => x.type === "event");
-  return evt?.type === "event" ? storyIndexForEvent(doc, evt.id) : 0;
+  if (evt?.type === "event") return storyIndexForEvent(doc, evt.id);
+
+  // Modality-only slices (e.g. Paystack checkout) may have views/screens but no events.
+  // Anchor UI to the view's fedBy event, or to a sibling screen that renders a view.
+  for (const sibling of inSlice) {
+    if (sibling.type === "view") {
+      const anchor = anchorEventForView(doc, sibling, events);
+      if (anchor) return storyIndexForEvent(doc, anchor.id);
+    }
+  }
+  for (const sibling of inSlice) {
+    if (sibling.type !== "screen") continue;
+    const siblingRender = doc.edges.find((e) => e.rel === "rendersOn" && e.to === sibling.id);
+    if (!siblingRender) continue;
+    const view = doc.nodes.find((x) => x.id === siblingRender.from && x.type === "view");
+    if (view?.type === "view") {
+      const anchor = anchorEventForView(doc, view, events);
+      if (anchor) return storyIndexForEvent(doc, anchor.id);
+    }
+  }
+  return 0;
 }
 
 function maxScreensPerStoryIndex(
@@ -178,20 +198,19 @@ function maxScreensPerStoryIndex(
 ): Map<number, number> {
   const countAtSi = new Map<number, number>();
   for (const n of doc.nodes) {
-    if (n.type !== "screen") continue;
+    if (n.type !== "screen" && n.type !== "automation" && n.type !== "trigger") continue;
     const si = screenStoryIndex(doc, n, events);
     countAtSi.set(si, (countAtSi.get(si) ?? 0) + 1);
   }
-  const maxAtSi = countAtSi;
-  return maxAtSi;
+  return countAtSi;
 }
 
 export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
-  const swimlaneRows = buildTimelineSwimlaneRows(doc);
-  const yBySwimlane = new Map(swimlaneRows.map((r) => [r.id, r.y]));
-  const yUi = swimlaneRows.find((r) => r.band === "ui")?.y ?? 48;
-  const yMid = swimlaneRows.find((r) => r.band === "commandView")?.y ?? 220;
-  const yEvt = swimlaneRows.find((r) => r.band === "events")?.y ?? 400;
+  const streamRows = buildTimelineStreamRows(doc);
+  const yByStream = new Map(streamRows.map((r) => [r.id, r.y]));
+  const yUi = streamRows.find((r) => r.band === "ui")?.y ?? 48;
+  const yMid = streamRows.find((r) => r.band === "commandView")?.y ?? 220;
+  const yEvt = streamRows.find((r) => r.band === "events")?.y ?? 400;
   const yMidPlaced = yForLaneRow(yMid);
   const yEventPlaced = yForLaneRow(yEvt);
 
@@ -212,14 +231,15 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
     viewsByAnchor.get(key)!.push(view);
   }
 
-  const indexMap = storyIndexByEventId(doc);
-  const storyIndices = [...new Set<number>(indexMap.values())].sort((a, b) => a - b);
+  const storyIndices = [...new Set(events.map((e) => storyIndexForEvent(doc, e.id)))].sort(
+    (a, b) => a - b,
+  );
   const maxScreensAtSi = maxScreensPerStoryIndex(doc, events);
   const xAtStory = buildStoryX(doc, events, viewsByAnchor, maxScreensAtSi, storyIndices);
 
   const screenSlot = new Map<string, number>();
 
-  const screensRowY = yBySwimlane.get(TIMELINE_SCREENS_ROW_ID) ?? yUi;
+  const screensRowY = yByStream.get(TIMELINE_TRIGGERS_ROW_ID) ?? yUi;
 
   function placeScreen(id: string, baseX: number, storyIndex: number) {
     const key = `${storyIndex}|${Math.round(baseX)}`;
@@ -257,14 +277,17 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
       positions.set(n.id, n.layout);
       continue;
     }
-    if (n.type === "screen") {
+    if (n.type === "screen" || n.type === "automation" || n.type === "trigger") {
       const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
       if (issue) {
         const cmdPos = positions.get(issue.to);
         const cmd = doc.nodes.find((x) => x.id === issue.to && x.type === "command");
-        const evtId = cmd?.type === "command" ? cmd.produces[0] : undefined;
+        const evtId =
+          cmd?.type === "command"
+            ? cmd.produces[0]
+            : undefined;
         const si = evtId ? storyIndexForEvent(doc, evtId) : 0;
-        placeScreen(n.id, cmdPos?.x ?? xAtStory(0), si);
+        placeScreen(n.id, cmdPos?.x ?? xAtStory(si), si);
         continue;
       }
       const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
@@ -274,12 +297,21 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
         placeScreen(n.id, viewPos?.x ?? xAtStory(0), si);
         continue;
       }
+      // Orphan UI in a modality slice: sit with the slice's view (payment page column).
+      const viewInSlice = doc.nodes.find(
+        (x) => x.sliceId === n.sliceId && x.type === "view",
+      );
       const si = screenStoryIndex(doc, n, events);
+      if (viewInSlice) {
+        const viewPos = positions.get(viewInSlice.id);
+        placeScreen(n.id, viewPos?.x ?? xAtStory(si), si);
+        continue;
+      }
       placeScreen(n.id, xAtStory(si), si);
     }
   }
 
-  return { positions, swimlaneRows };
+  return { positions, streamRows };
 }
 
 export { TIMELINE_EVENTS_ROW_ID };

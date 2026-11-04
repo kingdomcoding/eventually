@@ -6,8 +6,8 @@ import type { BlueprintNode } from "./nodes.js";
  * without mutating the document.
  */
 export type CanvasLayer = {
-  swimlaneId: string;
-  swimlaneName: string;
+  streamId: string;
+  streamName: string;
   band: "ui" | "commandView" | "events";
   nodes: BlueprintNode[];
 };
@@ -23,20 +23,20 @@ export type CanvasIndex = {
 };
 
 export function indexForCanvas(doc: BlueprintDocument): CanvasIndex {
-  const laneById = new Map(doc.swimlanes.map((s) => [s.id, s]));
+  const laneById = new Map(doc.streams.map((s) => [s.id, s]));
   const nodesById = Object.fromEntries(doc.nodes.map((n) => [n.id, n])) as Record<
     string,
     BlueprintNode
   >;
 
-  const sortedLanes = [...doc.swimlanes].sort((a, b) => a.order - b.order);
+  const sortedLanes = [...doc.streams].sort((a, b) => a.order - b.order);
 
   const uiLayers: CanvasLayer[] = sortedLanes.map((s) => ({
-    swimlaneId: s.id,
-    swimlaneName: s.name,
+    streamId: s.id,
+    streamName: s.name,
     band: s.band,
     nodes:
-      doc.nodes.filter((n) => n.swimlaneId === s.id),
+      doc.nodes.filter((n) => n.streamId === s.id),
   }));
 
   const timelineEvents = doc.nodes

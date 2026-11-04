@@ -22,6 +22,7 @@ export type CameraIntent =
 export type SessionAction =
   | { type: "HYDRATE"; snapshot: SessionSnapshot | null }
   | { type: "EVENT_CLICK"; eventId: string }
+  | { type: "TOGGLE_STREAM_SELECTION"; eventIds: string[] }
   | { type: "FOCUS_ANCHOR_TOGGLE"; nodeId: string }
   | { type: "RESET_STORY" }
   | { type: "SHOW_ALL_ON" }
@@ -30,7 +31,13 @@ export type SessionAction =
   | { type: "WORKFLOW_SET_FROM"; eventId: string | null }
   | { type: "WORKFLOW_SET_TO"; eventId: string | null }
   | { type: "WORKFLOW_CLEAR" }
-  | { type: "SET_DIAGRAM_MODE"; mode: DiagramMode };
+  | {
+      type: "SET_DIAGRAM_MODE";
+      mode: DiagramMode;
+      /** Narrative span to apply when entering Timeline from a Streams selection. */
+      workflowFromEventId?: string | null;
+      workflowToEventId?: string | null;
+    };
 
 const emptyBoard = (): SessionSnapshot["board"] => ({
   diagramMode: "design",
@@ -81,7 +88,52 @@ function cameraForDiagramMode(board: SessionSnapshot["board"]): CameraIntent {
   return { type: "FrameStoryTimeline" };
 }
 
+function nextBoardOnStreamEventClick(
+  board: SessionSnapshot["board"],
+  eventId: string,
+): SessionSnapshot["board"] {
+  const open = new Set(board.openEventIds);
+  const order = board.openOrder.filter((id) => id !== eventId);
+  if (open.has(eventId)) open.delete(eventId);
+  else {
+    open.add(eventId);
+    order.push(eventId);
+  }
+  return {
+    ...board,
+    showAll: false,
+    openEventIds: [...open],
+    openOrder: order,
+    focusAnchorId: null,
+  };
+}
+
+function nextBoardOnStreamToggle(
+  board: SessionSnapshot["board"],
+  eventIds: readonly string[],
+): SessionSnapshot["board"] {
+  const open = new Set(board.openEventIds);
+  const allSelected = eventIds.length > 0 && eventIds.every((id) => open.has(id));
+  if (allSelected) {
+    for (const id of eventIds) open.delete(id);
+  } else {
+    for (const id of eventIds) open.add(id);
+  }
+  const order = board.openOrder.filter((id) => open.has(id));
+  for (const id of open) {
+    if (!order.includes(id)) order.push(id);
+  }
+  return {
+    ...board,
+    showAll: false,
+    openEventIds: [...open],
+    openOrder: order,
+    focusAnchorId: null,
+  };
+}
+
 function nextBoardOnEventClick(board: SessionSnapshot["board"], eventId: string): SessionSnapshot["board"] {
+  if (board.diagramMode === "stream") return nextBoardOnStreamEventClick(board, eventId);
   const open = new Set(board.openEventIds);
   const order = [...board.openOrder];
 
@@ -148,6 +200,7 @@ function cameraForEventClick(
   after: SessionSnapshot["board"],
   eventId: string,
 ): CameraIntent {
+  if (before.diagramMode === "stream") return { type: "Preserve" };
   const wasOpen = before.openEventIds.includes(eventId);
   const isOpen = after.openEventIds.includes(eventId);
 
@@ -175,6 +228,7 @@ function cameraForEventClick(
 }
 
 function cameraForWorkflowEndpoints(board: SessionSnapshot["board"]): CameraIntent {
+  if (board.diagramMode === "timeline") return { type: "Preserve" };
   if (board.workflowFromEventId && board.workflowToEventId) {
     return {
       type: "FrameWorkflowPath",
@@ -186,6 +240,9 @@ function cameraForWorkflowEndpoints(board: SessionSnapshot["board"]): CameraInte
 }
 
 function cameraOnHydrate(board: SessionSnapshot["board"], hasViewport: boolean): CameraIntent {
+  if (board.diagramMode === "timeline") {
+    return cameraForDiagramMode(board);
+  }
   if (board.workflowFromEventId && board.workflowToEventId) {
     return cameraForWorkflowEndpoints(board);
   }
@@ -228,6 +285,14 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
         camera: cameraForEventClick(before, board, action.eventId),
       };
     }
+    case "TOGGLE_STREAM_SELECTION":
+      return {
+        state: {
+          ...state,
+          board: nextBoardOnStreamToggle(state.board, action.eventIds),
+        },
+        camera: { type: "Preserve" },
+      };
     case "FOCUS_ANCHOR_TOGGLE": {
       const before = state.board;
       const board = nextBoardOnFocusAnchorToggle(before, action.nodeId);
@@ -297,8 +362,20 @@ export function reduceSession(state: SessionState, action: SessionAction): Reduc
         ...state.board,
         diagramMode: action.mode,
         showAll: false,
-        workflowFromEventId: action.mode === "timeline" ? null : state.board.workflowFromEventId,
-        workflowToEventId: action.mode === "timeline" ? null : state.board.workflowToEventId,
+        focusAnchorId:
+          action.mode === "stream" || action.mode === "timeline" ? null : state.board.focusAnchorId,
+        workflowFromEventId:
+          action.mode === "timeline"
+            ? (action.workflowFromEventId !== undefined
+                ? action.workflowFromEventId
+                : state.board.workflowFromEventId)
+            : null,
+        workflowToEventId:
+          action.mode === "timeline"
+            ? (action.workflowToEventId !== undefined
+                ? action.workflowToEventId
+                : state.board.workflowToEventId)
+            : null,
       };
       return {
         state: { ...state, board },

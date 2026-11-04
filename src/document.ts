@@ -3,15 +3,15 @@ import { BlueprintEdgeSchema } from "./edges.js";
 import { BlueprintNodeSchema } from "./nodes.js";
 import { StreamShapeSchema } from "./streamShape.js";
 
-/** Canvas bands; ui/commandView may have multiple swimlanes; events band holds one row per stream. */
-export const SwimlaneBandSchema = z.enum(["ui", "commandView", "events"]);
+/** Canvas bands; ui/commandView may have multiple streams; events band holds one row per stream. */
+export const StreamBandSchema = z.enum(["ui", "commandView", "events"]);
 
-export type SwimlaneBand = z.infer<typeof SwimlaneBandSchema>;
+export type StreamBand = z.infer<typeof StreamBandSchema>;
 
-export const SwimlaneSchema = z.object({
+export const StreamSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  band: SwimlaneBandSchema,
+  band: StreamBandSchema,
   /** Row index within this band (0 = first lane). */
   order: z.number().int().nonnegative(),
   /** EventStore stream id pattern (e.g. subscription-{userId}). Shown in gutter. */
@@ -34,7 +34,7 @@ export const BlueprintMetaSchema = z.object({
 export const BlueprintDocumentSchema = z.object({
   schemaVersion: z.literal(1),
   meta: BlueprintMetaSchema,
-  swimlanes: z.array(SwimlaneSchema).min(1),
+  streams: z.array(StreamSchema).min(1),
   nodes: z.array(BlueprintNodeSchema),
   edges: z.array(BlueprintEdgeSchema),
 });
@@ -42,8 +42,10 @@ export const BlueprintDocumentSchema = z.object({
 export type BlueprintDocument = z.infer<typeof BlueprintDocumentSchema>;
 
 /** Which band a node type must live in. */
-export const NODE_BAND: Record<string, SwimlaneBand> = {
+export const NODE_BAND: Record<string, StreamBand> = {
   screen: "ui",
+  trigger: "ui",
+  automation: "ui",
   command: "commandView",
   view: "commandView",
   event: "events",

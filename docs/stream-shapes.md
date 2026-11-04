@@ -1,6 +1,6 @@
 # Stream shapes (partial order)
 
-Each **streams** swimlane can carry optional `streamShape` metadata beside `streamPattern`. Shapes describe how events on one EventStore stream may relate—not a single global timeline.
+Each **streams** stream can carry optional `streamShape` metadata beside `streamPattern`. Shapes describe how events on one EventStore stream may relate—not a single global timeline.
 
 ## Fields
 
@@ -20,7 +20,7 @@ Workflow routing uses then + loop-back + pool clique reachability on **one strea
 
 ## Timeline mode
 
-**Stream** layout uses this metadata (multi-row EventStore swimlanes). **Timeline** mode uses `meta.narrativeOrder` (event id list) for a single horizontal story spine with commands, views, and screens in their bands; stream spine edges are hidden. Future scoped timelines can reuse the same order + a subset filter without changing layout APIs.
+**Stream** layout uses this metadata (multi-row EventStore streams). **Timeline** mode uses `meta.narrativeOrder` (event id list) for a single horizontal story spine with commands, views, and screens in their bands; stream spine edges are hidden. Future scoped timelines can reuse the same order + a subset filter without changing layout APIs.
 
 ## Sample
 

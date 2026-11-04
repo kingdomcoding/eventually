@@ -17,32 +17,32 @@ function nodeMap(doc: BlueprintDocument): Map<string, BlueprintNode> {
 export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   const byId = nodeMap(doc);
-  const swimlaneIds = new Set(doc.swimlanes.map((s) => s.id));
+  const streamIds = new Set(doc.streams.map((s) => s.id));
 
-  const laneById = new Map(doc.swimlanes.map((s) => [s.id, s]));
+  const laneById = new Map(doc.streams.map((s) => [s.id, s]));
 
   for (const n of doc.nodes) {
-    if (!swimlaneIds.has(n.swimlaneId)) {
+    if (!streamIds.has(n.streamId)) {
       issues.push({
-        code: "unknown_swimlane",
-        message: `Node references missing swimlane "${n.swimlaneId}"`,
+        code: "unknown_stream",
+        message: `Node references missing stream "${n.streamId}"`,
         nodeId: n.id,
       });
       continue;
     }
-    const lane = laneById.get(n.swimlaneId)!;
+    const lane = laneById.get(n.streamId)!;
     if (n.type === "event" && lane.band !== "events") {
       issues.push({
-        code: "event_swimlane_not_stream",
-        message: `Event "${n.name}" must use a swimlane in the Streams band`,
+        code: "event_not_in_events_band",
+        message: `Event "${n.name}" must use a stream in the events band`,
         nodeId: n.id,
       });
     }
     const expected = NODE_BAND[n.type];
     if (expected && lane.band !== expected) {
       issues.push({
-        code: "swimlane_band_mismatch",
-        message: `Node type "${n.type}" must use a "${expected}" swimlane, not "${lane.band}"`,
+        code: "stream_band_mismatch",
+        message: `Node type "${n.type}" must use a "${expected}" stream, not "${lane.band}"`,
         nodeId: n.id,
       });
     }
@@ -81,10 +81,10 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
       from?.type === "event" &&
       to?.type === "event"
     ) {
-      if (from.swimlaneId !== to.swimlaneId) {
+      if (from.streamId !== to.streamId) {
         issues.push({
           code: "stream_edge_cross_stream",
-          message: `${e.rel} edge cannot cross streams (${from.swimlaneId} → ${to.swimlaneId})`,
+          message: `${e.rel} edge cannot cross streams (${from.streamId} → ${to.streamId})`,
           edgeId: e.id,
         });
       }
@@ -120,12 +120,12 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
     }
   }
 
-  for (const lane of doc.swimlanes) {
+  for (const lane of doc.streams) {
     const shape = lane.streamShape;
     if (!shape) continue;
 
     const eventIdsOnLane = new Set(
-      doc.nodes.filter((n) => n.type === "event" && n.swimlaneId === lane.id).map((n) => n.id),
+      doc.nodes.filter((n) => n.type === "event" && n.streamId === lane.id).map((n) => n.id),
     );
 
     const checkRef = (id: string, field: string) => {
@@ -137,7 +137,7 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
         });
         return;
       }
-      if (node.type !== "event" || node.swimlaneId !== lane.id) {
+      if (node.type !== "event" || node.streamId !== lane.id) {
         issues.push({
           code: "stream_shape_wrong_stream",
           message: `Stream "${lane.name}" ${field} must reference an event on that stream`,
@@ -230,16 +230,16 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
   const events = doc.nodes.filter((n) => n.type === "event");
   const indicesByStream = new Map<string, Set<number>>();
   for (const e of events) {
-    const set = indicesByStream.get(e.swimlaneId) ?? new Set();
+    const set = indicesByStream.get(e.streamId) ?? new Set();
     if (set.has(e.timelineIndex)) {
       issues.push({
         code: "duplicate_timeline_index",
-        message: `Two events on stream "${e.swimlaneId}" share timelineIndex ${e.timelineIndex}`,
+        message: `Two events on stream "${e.streamId}" share timelineIndex ${e.timelineIndex}`,
         nodeId: e.id,
       });
     }
     set.add(e.timelineIndex);
-    indicesByStream.set(e.swimlaneId, set);
+    indicesByStream.set(e.streamId, set);
   }
 
   return issues;

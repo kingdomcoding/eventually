@@ -6,7 +6,7 @@
     "version": 1,
     "modelVersion": 1
   },
-  "swimlanes": [
+  "streams": [
     { "id": "lane-guest-ui", "name": "Guest", "band": "ui", "order": 0 },
     { "id": "lane-booking-cv", "name": "Booking", "band": "commandView", "order": 0 },
     { "id": "lane-booking-events", "name": "Booking", "band": "events", "order": 0 }
@@ -16,7 +16,7 @@
       "type": "event",
       "id": "evt-hotel-setup",
       "name": "HotelConfigured",
-      "swimlaneId": "lane-booking-events",
+      "streamId": "lane-booking-events",
       "sliceId": "slice-setup",
       "timelineIndex": 0,
       "payload": [
@@ -28,7 +28,7 @@
       "type": "view",
       "id": "view-availability",
       "name": "RoomAvailability",
-      "swimlaneId": "lane-booking-cv",
+      "streamId": "lane-booking-cv",
       "sliceId": "slice-book",
       "fields": [
         { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "fromEvent", "eventId": "evt-hotel-setup", "field": "hotelId" } },
@@ -40,7 +40,7 @@
       "type": "screen",
       "id": "scr-calendar",
       "name": "Availability calendar",
-      "swimlaneId": "lane-guest-ui",
+      "streamId": "lane-guest-ui",
       "sliceId": "slice-book",
       "actor": "Guest",
       "bindings": [
@@ -54,7 +54,7 @@
       "type": "command",
       "id": "cmd-book-room",
       "name": "BookRoom",
-      "swimlaneId": "lane-booking-cv",
+      "streamId": "lane-booking-cv",
       "sliceId": "slice-book",
       "input": [
         { "name": "hotelId", "type": "uuid", "optional": false, "source": { "kind": "user" } },
@@ -69,7 +69,7 @@
       "type": "event",
       "id": "evt-room-booked",
       "name": "RoomBooked",
-      "swimlaneId": "lane-booking-events",
+      "streamId": "lane-booking-events",
       "sliceId": "slice-book",
       "timelineIndex": 1,
       "payload": [
@@ -84,7 +84,7 @@
       "type": "screen",
       "id": "scr-book-form",
       "name": "Book room",
-      "swimlaneId": "lane-guest-ui",
+      "streamId": "lane-guest-ui",
       "sliceId": "slice-book",
       "actor": "Guest",
       "bindings": [

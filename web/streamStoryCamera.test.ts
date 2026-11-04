@@ -6,16 +6,16 @@ import test from "node:test";
 
 import { BlueprintDocumentSchema } from "../src/document.js";
 import { computeLayout } from "./layout.js";
-import { swimlaneStoryViewport } from "./swimlaneStoryCamera.js";
+import { streamStoryViewport } from "./streamStoryCamera.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const apex = BlueprintDocumentSchema.parse(
   JSON.parse(readFileSync(join(here, "../samples/apex-bee.json"), "utf8")),
 );
 
-test("swimlane story viewport uses event band height for zoom", () => {
-  const layout = computeLayout(apex, "swimlane");
-  const vp = swimlaneStoryViewport(layout, apex, 1200, 720, 0.14, 0.3, 1.5);
+test("stream story viewport uses event band height for zoom", () => {
+  const layout = computeLayout(apex, "stream");
+  const vp = streamStoryViewport(layout, apex, 1200, 720, 0.14, 0.3, 1.5);
   assert.ok(vp.zoom >= 0.5, `expected readable zoom, got ${vp.zoom}`);
   assert.ok(vp.zoom <= 0.56, `slightly zoomed out from tight min, got ${vp.zoom}`);
   assert.ok(vp.zoom <= 1.2);

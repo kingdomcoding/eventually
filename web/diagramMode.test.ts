@@ -3,14 +3,15 @@ import test from "node:test";
 
 import { DIAGRAM_MODE_ORDER, nextDiagramMode, normalizeDiagramMode } from "./diagramMode.js";
 
-test("diagram mode order cycles design → swimlane → timeline", () => {
-  assert.deepEqual([...DIAGRAM_MODE_ORDER], ["design", "swimlane", "timeline"]);
-  assert.equal(nextDiagramMode("design"), "swimlane");
-  assert.equal(nextDiagramMode("swimlane"), "timeline");
+test("diagram mode order cycles design → stream → timeline", () => {
+  assert.deepEqual([...DIAGRAM_MODE_ORDER], ["design", "stream", "timeline"]);
+  assert.equal(nextDiagramMode("design"), "stream");
+  assert.equal(nextDiagramMode("stream"), "timeline");
   assert.equal(nextDiagramMode("timeline"), "design");
 });
 
 test("normalizeDiagramMode defaults to design", () => {
   assert.equal(normalizeDiagramMode(undefined), "design");
-  assert.equal(normalizeDiagramMode("stream"), "swimlane");
+  assert.equal(normalizeDiagramMode("stream"), "stream");
+  assert.equal(normalizeDiagramMode("swimlane"), "stream");
 });

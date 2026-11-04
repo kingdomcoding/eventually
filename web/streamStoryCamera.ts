@@ -4,17 +4,17 @@ import { eventTimelineNodeIds } from "./graphIndex.js";
 import type { LayoutResult } from "./layout.js";
 
 /** Keep stream labels legible; pan vertically for long multi-stream boards. */
-export const SWIMLANE_STORY_MIN_ZOOM = 0.52;
+export const STREAM_STORY_MIN_ZOOM = 0.52;
 
-/** Extra inset for swimlane story framing (gutter + first column breathing room). */
-export const SWIMLANE_STORY_PADDING = 0.14;
+/** Extra inset for stream story framing (gutter + first column breathing room). */
+export const STREAM_STORY_PADDING = 0.14;
 
 /**
- * Swimlane "story" framing: fill the viewport with the EventStore stream band
+ * Stream "story" framing: fill the viewport with the EventStore stream band
  * (vertical) and anchor on the left spine (horizontal). Does not zoom out to
  * fit the widest stream — pan right for long chains.
  */
-export function swimlaneStoryViewport(
+export function streamStoryViewport(
   layout: LayoutResult,
   doc: BlueprintDocument,
   paneWidth: number,
@@ -27,7 +27,7 @@ export function swimlaneStoryViewport(
   const innerW = paneWidth * (1 - pad * 2);
   const innerH = paneHeight * (1 - pad * 2);
 
-  const eventRows = layout.swimlaneRows.filter((r) => r.band === "events");
+  const eventRows = layout.streamRows.filter((r) => r.band === "events");
   const bandTop = eventRows[0]?.y ?? 0;
   const bandBottom = eventRows[eventRows.length - 1]?.yLine ?? bandTop + innerH;
 
@@ -42,7 +42,7 @@ export function swimlaneStoryViewport(
   const zoomFromHeight = innerH / bandH;
   const zoom = Math.min(
     maxZoom,
-    Math.max(minZoom, SWIMLANE_STORY_MIN_ZOOM, zoomFromHeight),
+    Math.max(minZoom, STREAM_STORY_MIN_ZOOM, zoomFromHeight),
   );
 
   const screenPadX = paneWidth * pad;
@@ -55,8 +55,8 @@ export function swimlaneStoryViewport(
   };
 }
 
-/** Rough check that saved viewport matches swimlane story scale (not timeline full-board). */
-export function swimlaneViewportLooksStale(
+/** Rough check that saved viewport matches stream story scale (not timeline full-board). */
+export function streamViewportLooksStale(
   zoom: number,
   layout: LayoutResult,
   doc: BlueprintDocument,
@@ -64,7 +64,7 @@ export function swimlaneViewportLooksStale(
   minZoom: number,
   maxZoom: number,
 ): boolean {
-  const target = swimlaneStoryViewport(
+  const target = streamStoryViewport(
     layout,
     doc,
     800,

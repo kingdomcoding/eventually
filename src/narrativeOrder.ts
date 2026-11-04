@@ -33,3 +33,29 @@ export function orderedNarrativeEventIds(doc: BlueprintDocument): string[] {
   const byIndex = [...storyIndexByEventId(doc).entries()].sort((a, b) => a[1] - b[1]);
   return byIndex.map(([id]) => id);
 }
+
+/** Earliest and latest selected events on the narrative spine. */
+export function narrativeSpanOf(
+  doc: BlueprintDocument,
+  eventIds: readonly string[],
+): { from: string; to: string } | null {
+  const index = storyIndexByEventId(doc);
+  let fromId: string | null = null;
+  let toId: string | null = null;
+  let fromAt = Infinity;
+  let toAt = -1;
+  for (const id of eventIds) {
+    const at = index.get(id);
+    if (at == null) continue;
+    if (at < fromAt) {
+      fromAt = at;
+      fromId = id;
+    }
+    if (at > toAt) {
+      toAt = at;
+      toId = id;
+    }
+  }
+  if (!fromId || !toId) return null;
+  return { from: fromId, to: toId };
+}

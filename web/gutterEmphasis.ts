@@ -1,10 +1,10 @@
-import type { BlueprintDocument, SwimlaneBand } from "@schema/document.js";
-import type { SwimlaneRow } from "./layoutMetrics.js";
+import type { BlueprintDocument, StreamBand } from "@schema/document.js";
+import type { StreamRow } from "./layoutMetrics.js";
 import { BAND_GAP } from "./layoutMetrics.js";
-import { TIMELINE_EVENTS_ROW_ID, TIMELINE_SCREENS_ROW_ID } from "./timelineLayout.js";
+import { TIMELINE_EVENTS_ROW_ID, TIMELINE_TRIGGERS_ROW_ID } from "./timelineLayout.js";
 import { flowYToScreenY, type FlowViewport, type GutterDivider } from "./gutterLayout.js";
-import { BAND_LABEL } from "./swimlaneLabels.js";
-import { GUTTER_COLLAPSIBLE_BANDS } from "./swimlaneLabels.js";
+import { BAND_LABEL } from "./streamLabels.js";
+import { GUTTER_COLLAPSIBLE_BANDS } from "./streamLabels.js";
 import type { DisplayTier, FocusState, PreviewPhase } from "./viewMode.js";
 import { nodeDisplayTier } from "./viewMode.js";
 
@@ -17,7 +17,7 @@ export const GUTTER_EMPHASIS_OPACITY = {
 } as const;
 
 export type BandBlock = {
-  band: SwimlaneBand;
+  band: StreamBand;
   headerLabel: string;
   laneIds: string[];
   yStart: number;
@@ -27,7 +27,7 @@ export type BandBlock = {
 export type GutterEmphasisState = {
   byLaneId: Map<string, GutterEmphasis>;
   byLaneTier: Map<string, DisplayTier>;
-  byBand: Map<SwimlaneBand, GutterEmphasis>;
+  byBand: Map<StreamBand, GutterEmphasis>;
 };
 
 const TIER_RANK: Record<DisplayTier, number> = {
@@ -54,9 +54,9 @@ function maxTierInLane(
 ): DisplayTier {
   let best: DisplayTier = "hidden";
   for (const n of doc.nodes) {
-    if (laneId === TIMELINE_SCREENS_ROW_ID) {
-      if (n.type !== "screen") continue;
-    } else if (n.swimlaneId !== laneId) {
+    if (laneId === TIMELINE_TRIGGERS_ROW_ID) {
+      if (n.type !== "screen" && n.type !== "automation" && n.type !== "trigger") continue;
+    } else if (n.streamId !== laneId) {
       continue;
     }
     best = maxTier(best, nodeDisplayTier(doc, n.id, state, previewPhase));
@@ -83,9 +83,9 @@ function emphasisForEventsBand(tier: DisplayTier, showAll: boolean): GutterEmpha
 function recomputeBands(
   doc: BlueprintDocument,
   byLaneId: Map<string, GutterEmphasis>,
-): Map<SwimlaneBand, GutterEmphasis> {
-  const byBand = new Map<SwimlaneBand, GutterEmphasis>();
-  for (const lane of doc.swimlanes) {
+): Map<StreamBand, GutterEmphasis> {
+  const byBand = new Map<StreamBand, GutterEmphasis>();
+  for (const lane of doc.streams) {
     const em = byLaneId.get(lane.id) ?? "idle";
     byBand.set(lane.band, maxEmphasis(byBand.get(lane.band) ?? "idle", em));
   }
@@ -105,7 +105,7 @@ function gutterExpanded(state: FocusState): boolean {
 
 export function isPureStory(state: FocusState): boolean {
   return (
-    state.diagramMode === "swimlane" &&
+    state.diagramMode === "stream" &&
     state.openEventIds.size === 0 &&
     !state.focusAnchorId
   );
@@ -120,12 +120,12 @@ function maxTierForEvents(doc: BlueprintDocument, state: FocusState, previewPhas
   return best;
 }
 
-export function bandBlocksFromRows(rows: SwimlaneRow[]): BandBlock[] {
+export function bandBlocksFromRows(rows: StreamRow[]): BandBlock[] {
   const blocks: BandBlock[] = [];
   let i = 0;
   while (i < rows.length) {
     const band = rows[i]!.band;
-    const bandRows: SwimlaneRow[] = [];
+    const bandRows: StreamRow[] = [];
     while (i < rows.length && rows[i]!.band === band) {
       bandRows.push(rows[i]!);
       i++;
@@ -143,7 +143,7 @@ export function bandBlocksFromRows(rows: SwimlaneRow[]): BandBlock[] {
 
 export function computeGutterEmphasis(
   doc: BlueprintDocument,
-  rows: SwimlaneRow[],
+  rows: StreamRow[],
   state: FocusState,
   previewPhase: PreviewPhase,
 ): GutterEmphasisState {
@@ -171,15 +171,15 @@ export function computeGutterEmphasis(
 }
 
 /** Whether a gutter row should render (collapsible bands hide when tier is hidden). */
-export function gutterRowVisible(band: SwimlaneBand, maxTier: DisplayTier, showAll: boolean): boolean {
+export function gutterRowVisible(band: StreamBand, maxTier: DisplayTier, showAll: boolean): boolean {
   if (!GUTTER_COLLAPSIBLE_BANDS.has(band)) return true;
   if (showAll) return true;
   return maxTier !== "hidden";
 }
 
 export function bandHasVisibleGutterRows(
-  rows: SwimlaneRow[],
-  band: SwimlaneBand,
+  rows: StreamRow[],
+  band: StreamBand,
   byLaneTier: Map<string, DisplayTier>,
   showAll: boolean,
 ): boolean {
@@ -192,7 +192,7 @@ export function bandHasVisibleGutterRows(
 }
 
 function rowGutterVisible(
-  rows: SwimlaneRow[],
+  rows: StreamRow[],
   index: number,
   byLaneTier: Map<string, DisplayTier>,
   showAll: boolean,
@@ -204,7 +204,7 @@ function rowGutterVisible(
 
 /** Dividers only when both adjacent lanes/bands are visible in the gutter (no ghost lines above Events). */
 export function visibleGutterDividers(
-  rows: SwimlaneRow[],
+  rows: StreamRow[],
   viewport: FlowViewport,
   byLaneTier: Map<string, DisplayTier>,
   showAll: boolean,
@@ -231,7 +231,7 @@ export function visibleGutterDividers(
 }
 
 export function upperCollapsibleBandsHidden(
-  rows: SwimlaneRow[],
+  rows: StreamRow[],
   byLaneTier: Map<string, DisplayTier>,
   showAll: boolean,
 ): boolean {

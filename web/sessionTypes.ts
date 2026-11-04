@@ -4,7 +4,7 @@ export type ViewportState = {
   zoom: number;
 };
 
-export type DiagramMode = "design" | "swimlane" | "timeline";
+export type DiagramMode = "design" | "stream" | "timeline";
 
 export type SessionBoard = {
   diagramMode: DiagramMode;

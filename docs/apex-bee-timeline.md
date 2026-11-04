@@ -4,7 +4,7 @@
 
 ## Bands
 
-| Band | Swimlanes | Contents |
+| Band | Streams | Contents |
 |------|-----------|----------|
 | **ui** | Web, Mobile app, Ops & system | LiveView routes and mobile API surfaces |
 | **commandView** | Commands | Ash command resources (`RegisterDevice`, `SubmitExam`, …) |
@@ -16,7 +16,7 @@ Timeline stack ends at the **events** spine (no band below).
 
 - **issues** — screen → command (including “Ops & system” surfaces for webhooks, poll, IEx).
 - **produces** — command → event (28 pairs, 1:1 with code).
-- **ordersBefore** — stream partial order (Swimlanes mode; hidden on timeline canvas).
+- **ordersBefore** — stream partial order (Streams mode; hidden on timeline canvas).
 
 Event spine order is still **`meta.narrativeOrder`** (28 event ids).
 

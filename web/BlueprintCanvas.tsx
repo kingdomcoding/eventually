@@ -14,10 +14,11 @@ import { BlueprintDocumentSchema } from "@schema/document.js";
 import { indexForCanvas } from "@schema/canvas-index.js";
 import { buildEdges } from "./edges";
 import { computeLayout, type DiagramMode } from "./layout";
+import { packLayout, type NodeSize } from "./packLayout";
 import { LAYOUT_MORPH_MS, useLayoutMorph } from "./useLayoutMorph";
 import { StickyNode, type StickyData } from "./StickyNode";
 import { computeGutterEmphasis } from "./gutterEmphasis";
-import { SwimlaneGutter } from "./SwimlaneGutter";
+import { StreamGutter } from "./StreamGutter";
 import { usePinchZoom } from "./usePinchZoom";
 import { useHoverPreview } from "./useHoverPreview";
 import { useBlueprintSession } from "./useBlueprintSession";
@@ -29,17 +30,17 @@ import {
   WORKFLOW_OFF_PATH_OPACITY,
   edgeDisplayTier,
   edgeShouldAnimate,
-  focusHold,
   nodeDisplayTier,
   previewOpacity,
   type DisplayTier,
   type PreviewPhase,
 } from "./viewMode";
 import { WorkflowRouteBar } from "./WorkflowRouteBar";
-import { computeWorkflowPath, listWorkflowEventOptions } from "./workflowPath";
+import { narrativeSpanOf, storyIndexByEventId } from "../src/narrativeOrder.js";
+import { computeTimelineRange, listWorkflowEventOptions, timelineSelectionPath } from "./workflowPath";
 import { nextDiagramMode } from "./diagramMode";
-import { swimlaneViewportLooksStale } from "./swimlaneStoryCamera";
-import { BAND_LABEL_DESIGN_UI } from "./swimlaneLabels";
+import { streamViewportLooksStale } from "./streamStoryCamera";
+import { BAND_LABEL_DESIGN_UI } from "./streamLabels";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
@@ -92,11 +93,11 @@ function BoardControls({
         </button>
         <button
           type="button"
-          className={diagramMode === "swimlane" ? "is-active" : ""}
-          aria-pressed={diagramMode === "swimlane"}
-          onClick={() => onSetDiagramMode("swimlane")}
+          className={diagramMode === "stream" ? "is-active" : ""}
+          aria-pressed={diagramMode === "stream"}
+          onClick={() => onSetDiagramMode("stream")}
         >
-          Swimlanes
+          Streams
         </button>
         <button
           type="button"
@@ -109,10 +110,10 @@ function BoardControls({
       </div>
       <div className="view-mode-hint">
         {diagramMode === "design"
-          ? "User categories and screens · M or double-click canvas → Swimlanes"
-          : diagramMode === "swimlane"
-            ? "EventStore streams · hover preview · click to open detail · M or double-click → Timeline"
-            : "One story spine with commands, views, and screens · M or double-click → Design"}
+          ? "User categories and screens · M or double-click canvas → Streams"
+          : diagramMode === "stream"
+            ? "Click an event or a stream to mark it · Timeline shows that slice · M or double-click → Timeline"
+            : "One story spine · From and To dim events outside the range · M or double-click → Design"}
       </div>
     </div>
   );
@@ -146,7 +147,17 @@ function formatFocusLabel(doc: ReturnType<typeof BlueprintDocumentSchema.parse>,
   const node = doc.nodes.find((n) => n.id === anchorId);
   if (!node) return anchorId;
   const kind =
-    node.type === "command" ? "Command" : node.type === "view" ? "View" : node.type === "screen" ? "Screen" : "Event";
+    node.type === "command"
+      ? "Command"
+      : node.type === "view"
+        ? "View"
+        : node.type === "screen"
+          ? "Screen"
+          : node.type === "trigger"
+            ? "Trigger"
+            : node.type === "automation"
+              ? "Automation"
+              : "Event";
   return `${kind} — ${node.name}`;
 }
 
@@ -162,15 +173,61 @@ export function BlueprintCanvas() {
   });
 
   const diagramMode = session.board.diagramMode;
+  const timelineRange = useMemo(() => {
+    const from = session.board.workflowFromEventId;
+    const to = session.board.workflowToEventId;
+    const selected = session.board.openEventIds;
+    if (diagramMode === "timeline" && selected.length > 0) {
+      const marked = narrativeSpanOf(doc, selected);
+      if (marked && marked.from === from && marked.to === to) {
+        return timelineSelectionPath(doc, selected);
+      }
+    }
+    return computeTimelineRange(doc, from, to);
+  }, [
+    doc,
+    diagramMode,
+    session.board.workflowFromEventId,
+    session.board.workflowToEventId,
+    session.board.openEventIds,
+  ]);
   const layout = useMemo(() => computeLayout(doc, diagramMode), [doc, diagramMode]);
-  const { positions: displayPositions, isMorphing } = useLayoutMorph(layout.positions);
+  const { positions: morphPositions, isMorphing } = useLayoutMorph(layout.positions);
+  const [nodeSizes, setNodeSizes] = useState<Map<string, NodeSize>>(() => new Map());
+  const onMeasuredSize = useCallback((nodeId: string, size: NodeSize) => {
+    setNodeSizes((prev) => {
+      const cur = prev.get(nodeId);
+      if (
+        cur &&
+        Math.round(cur.width) === Math.round(size.width) &&
+        Math.round(cur.height) === Math.round(size.height)
+      ) {
+        return prev;
+      }
+      const next = new Map(prev);
+      next.set(nodeId, {
+        width: Math.round(size.width),
+        height: Math.round(size.height),
+      });
+      return next;
+    });
+  }, []);
+  const packed = useMemo(() => {
+    // During mode morph, keep base geometry so incomplete interpolations are not re-binned into lanes.
+    if (isMorphing) {
+      return { positions: morphPositions, streamRows: layout.streamRows };
+    }
+    return packLayout({ positions: morphPositions, streamRows: layout.streamRows }, nodeSizes);
+  }, [isMorphing, morphPositions, layout.streamRows, nodeSizes]);
+  const displayPositions = packed.positions;
+  const displayStreamRows = packed.streamRows;
   const layoutCameraPending = useRef(false);
   const morphSyncCameraFired = useRef(false);
   const pendingTimelineFullFitRef = useRef(false);
   const diagramModeRef = useRef(diagramMode);
   diagramModeRef.current = diagramMode;
 
-  /** Hide timeline stack + upper gutter bands until swimlane→timeline morph completes. */
+  /** Hide timeline stack + upper gutter bands until stream→timeline morph completes. */
   const [timelineStackDeferred, setTimelineStackDeferred] = useState(false);
   const layoutMorphStartedRef = useRef(false);
 
@@ -284,15 +341,17 @@ export function BlueprintCanvas() {
     workflowToEventId: session.board.workflowToEventId,
   };
 
-  const workflowEventOptions = useMemo(() => listWorkflowEventOptions(doc), [doc]);
-  const workflowPath = useMemo(
-    () => computeWorkflowPath(doc, workflowFromEventId, workflowToEventId),
-    [doc, workflowFromEventId, workflowToEventId],
-  );
+  const workflowEventOptions = useMemo(() => {
+    const index = storyIndexByEventId(doc);
+    return listWorkflowEventOptions(doc).sort(
+      (a, b) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0),
+    );
+  }, [doc]);
+  const workflowPath = timelineRange;
 
   /** Disable hover only during story + focus-hold (no pinned slices). */
   const hoverPreviewEnabled =
-    diagramMode !== "design" && !(focusAnchorId !== null && openEventIds.size === 0);
+    diagramMode === "timeline" && !(focusAnchorId !== null && openEventIds.size === 0);
 
   const eventTargets = useMemo(
     () =>
@@ -344,7 +403,7 @@ export function BlueprintCanvas() {
     if (session.viewport) {
       const { height } = getFlowPaneSizeFromCanvas(canvasRef.current);
       if (
-        swimlaneViewportLooksStale(
+        streamViewportLooksStale(
           session.viewport.zoom,
           layout,
           doc,
@@ -387,7 +446,11 @@ export function BlueprintCanvas() {
     (next: DiagramMode) => {
       if (next === diagramMode) return;
       clearHover();
-      if (next === "timeline" && (diagramMode === "swimlane" || diagramMode === "design")) {
+      const span =
+        next === "timeline" && session.board.openEventIds.length > 0
+          ? narrativeSpanOf(doc, session.board.openEventIds)
+          : null;
+      if (next === "timeline" && (diagramMode === "stream" || diagramMode === "design")) {
         layoutMorphStartedRef.current = false;
         if (!prefersReducedMotion()) {
           setTimelineStackDeferred(true);
@@ -400,14 +463,20 @@ export function BlueprintCanvas() {
       diagramModeRef.current = next;
       layoutCameraPending.current = true;
       morphSyncCameraFired.current = false;
-      dispatch({ type: "SET_DIAGRAM_MODE", mode: next });
+      dispatch({
+        type: "SET_DIAGRAM_MODE",
+        mode: next,
+        ...(span
+          ? { workflowFromEventId: span.from, workflowToEventId: span.to }
+          : {}),
+      });
     },
-    [clearHover, dispatch, diagramMode],
+    [clearHover, dispatch, diagramMode, doc, session.board.openEventIds],
   );
 
   const gutterEmphasis = useMemo(
-    () => computeGutterEmphasis(doc, layout.swimlaneRows, focusState, previewPhase),
-    [doc, layout.swimlaneRows, focusState, previewPhase],
+    () => computeGutterEmphasis(doc, displayStreamRows, focusState, previewPhase),
+    [doc, displayStreamRows, focusState, previewPhase],
   );
 
   const onFlowMove = useCallback((_: unknown, viewport: Viewport) => {
@@ -417,8 +486,6 @@ export function BlueprintCanvas() {
   const cycleDiagramMode = useCallback(() => {
     beginDiagramModeChange(nextDiagramMode(diagramMode));
   }, [beginDiagramModeChange, diagramMode]);
-
-  const holdFocus = focusHold(focusState);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -440,6 +507,17 @@ export function BlueprintCanvas() {
       if (el.closest(".react-flow__node")) return;
       if (el.closest(".react-flow__controls")) return;
       if (el.closest(".react-flow__minimap")) return;
+      if (el.closest(".lane-gutter-host")) return;
+      const gutter = gutterRef.current?.getBoundingClientRect();
+      if (
+        gutter &&
+        event.clientX >= gutter.left &&
+        event.clientX <= gutter.right &&
+        event.clientY >= gutter.top &&
+        event.clientY <= gutter.bottom
+      ) {
+        return;
+      }
       cycleDiagramMode();
     },
     [cycleDiagramMode],
@@ -452,15 +530,60 @@ export function BlueprintCanvas() {
   const index = useMemo(() => indexForCanvas(doc), [doc]);
 
   const baseStickyNodes: Node[] = useMemo(
-    () =>
-      doc.nodes.map((n) => {
+    () => {
+      const streamNameById = new Map(doc.streams.map((s) => [s.id, s.name]));
+      const titleCase = (value: string) =>
+        value.replace(/(^|\s)(\S)/g, (_lead, space: string, ch: string) => space + ch.toUpperCase());
+      const nodeById = new Map(doc.nodes.map((node) => [node.id, node]));
+      const commandStreamLabel = (commandId: string): string | undefined => {
+        const streamIds = new Set<string>();
+        for (const edge of doc.edges) {
+          if (edge.rel !== "produces" || edge.from !== commandId) continue;
+          const produced = nodeById.get(edge.to);
+          if (produced?.type === "event") streamIds.add(produced.streamId);
+        }
+        if (streamIds.size !== 1) return undefined;
+        return streamNameById.get([...streamIds][0]!);
+      };
+      const viewUiStreamLabel = (viewId: string): string | undefined => {
+        for (const edge of doc.edges) {
+          if (edge.rel !== "rendersOn" || edge.from !== viewId) continue;
+          const ui = nodeById.get(edge.to);
+          if (ui && (ui.type === "screen" || ui.type === "trigger")) {
+            return streamNameById.get(ui.streamId);
+          }
+        }
+        return undefined;
+      };
+      return doc.nodes.map((n) => {
         const p = displayPositions.get(n.id) ?? { x: 0, y: 0 };
+        let timelineEvent =
+          diagramMode === "timeline" &&
+          (n.type === "event" || n.type === "trigger" || n.type === "command" || n.type === "screen");
         let subtitle: string | undefined;
-        if (n.type === "command" && n.rejections.length)
+        let streamTitle: string | undefined;
+        if (timelineEvent && (n.type === "event" || n.type === "trigger" || n.type === "screen")) {
+          const streamName = streamNameById.get(n.streamId);
+          streamTitle = streamName ? titleCase(streamName) : undefined;
+        } else if (timelineEvent && n.type === "command") {
+          const streamName = commandStreamLabel(n.id);
+          streamTitle = streamName ? titleCase(streamName) : undefined;
+        } else if (diagramMode === "timeline" && n.type === "view") {
+          const streamName = viewUiStreamLabel(n.id) ?? streamNameById.get(n.streamId);
+          if (streamName) {
+            timelineEvent = true;
+            streamTitle = titleCase(streamName);
+          }
+        } else if (n.type === "command" && n.rejections.length) {
           subtitle = `${n.rejections.length} rejection(s)`;
+        } else if (diagramMode === "timeline" && n.type === "automation") {
+          subtitle = streamNameById.get(n.streamId);
+        }
         const isFocusAnchor = focusAnchorId !== null && n.id === focusAnchorId;
         const onWorkflowRoute =
           workflowPath.status === "valid" && workflowPath.eventIds.has(n.id) && n.type === "event";
+        const selected =
+          diagramMode === "stream" && n.type === "event" && openEventIds.has(n.id);
         return {
           id: n.id,
           type: "sticky",
@@ -471,18 +594,64 @@ export function BlueprintCanvas() {
             kind: n.type,
             name: n.name,
             subtitle,
+            streamTitle,
+            timelineEvent,
+            fields:
+              diagramMode === "timeline" &&
+              (n.type === "event" || n.type === "trigger" || n.type === "command") &&
+              "fields" in n &&
+              n.fields?.length
+                ? n.fields
+                : diagramMode === "timeline" && n.type === "view" && n.fields.length
+                  ? n.fields.map((field) => ({
+                      name: field.name,
+                      type: field.type,
+                      description:
+                        field.source.kind === "fromEvent"
+                          ? `From ${field.source.eventId}.${field.source.field}.`
+                          : field.source.kind === "derived"
+                            ? field.source.note ?? "Derived for this view."
+                            : field.source.kind === "user"
+                              ? "Supplied by the user."
+                              : field.source.kind === "generated"
+                                ? "Generated value."
+                                : field.source.note ?? "External value.",
+                    }))
+                  : undefined,
+            apiClientResponse:
+              diagramMode === "timeline" &&
+              n.type === "command" &&
+              n.apiClientResponse?.length
+                ? n.apiClientResponse
+                : undefined,
+            onMeasuredSize,
             isFocusAnchor,
             onWorkflowRoute,
+            selected,
+            external: n.type === "trigger" && Boolean(n.external),
+            parents:
+              n.type === "trigger" && n.parents?.length ? n.parents : undefined,
           } satisfies StickyData,
         };
-      }),
-    [doc.nodes, displayPositions, focusAnchorId, workflowPath],
+      });
+    },
+    [
+      doc.nodes,
+      doc.streams,
+      doc.edges,
+      displayPositions,
+      focusAnchorId,
+      workflowPath,
+      diagramMode,
+      openEventIds,
+      onMeasuredSize,
+    ],
   );
 
   const allEdges = useMemo(
     () =>
       buildEdges(doc, displayPositions, {
-        includeStreamEdges: diagramMode === "swimlane",
+        includeStreamEdges: diagramMode === "stream",
         includeEmEdges: diagramMode !== "design",
       }),
     [doc, displayPositions, diagramMode],
@@ -574,20 +743,37 @@ export function BlueprintCanvas() {
     diagramMode === "design"
       ? "Design — screens by user category (double-click canvas to cycle views)"
       : diagramMode === "timeline"
-        ? focusAnchorId
-          ? `Timeline · focus — ${formatFocusLabel(doc, focusAnchorId)}`
-          : openEventIds.size > 0
-            ? `Timeline · ${openEventIds.size} open slice(s)`
-            : "Timeline — full event-model stack on one story spine"
+        ? workflowPath.status === "valid"
+          ? `Timeline · ${workflowPath.eventIds.size} events in range`
+          : focusAnchorId
+            ? `Timeline · focus — ${formatFocusLabel(doc, focusAnchorId)}`
+            : openEventIds.size > 0
+              ? `Timeline · ${openEventIds.size} open slice(s)`
+              : "Timeline — full event-model stack on one story spine"
         : workflowPath.status === "valid"
           ? `Workflow route — ${workflowPath.eventIds.size} events highlighted`
-          : focusAnchorId
-            ? holdFocus
-              ? `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)}`
-              : `Swimlanes · focus — ${formatFocusLabel(doc, focusAnchorId)} · ${openEventIds.size} open slice(s)`
             : openEventIds.size > 0
-              ? `Swimlanes · ${openEventIds.size} open slice(s) · click an event to focus`
-              : "Swimlanes — one row per EventStore pattern · hover for preview · click an event for detail";
+              ? `Streams · ${openEventIds.size} selected for Timeline`
+              : "Streams — click an event or a stream to mark a Timeline slice";
+
+  const selectedStreamIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (diagramMode !== "stream") return ids;
+    for (const n of doc.nodes) {
+      if (n.type === "event" && openEventIds.has(n.id)) ids.add(n.streamId);
+    }
+    return ids;
+  }, [diagramMode, doc.nodes, openEventIds]);
+
+  const onSelectStream = useCallback(
+    (streamId: string) => {
+      const eventIds = doc.nodes
+        .filter((n) => n.type === "event" && n.streamId === streamId)
+        .map((n) => n.id);
+      dispatch({ type: "TOGGLE_STREAM_SELECTION", eventIds });
+    },
+    [dispatch, doc.nodes],
+  );
 
   return (
     <>
@@ -596,26 +782,34 @@ export function BlueprintCanvas() {
           <h1>{index.meta.name}</h1>
           <div className="meta">{metaLine}</div>
         </div>
-        <BoardControls diagramMode={diagramMode} onSetDiagramMode={beginDiagramModeChange} />
-        {showLegend ? (
-          <div className="legend">
-            <span>
-              <i style={{ background: "#f5c542" }} /> event
-            </span>
-            <span>
-              <i style={{ background: "#4a8fd4" }} /> command
-            </span>
-            <span>
-              <i style={{ background: "#5cb85c" }} /> view
-            </span>
-            <span>
-              <i style={{ background: "#eceff4" }} /> screen
-            </span>
-          </div>
-        ) : null}
+        <div className="app-header-end">
+          {showLegend ? (
+            <div className="legend">
+              <span>
+                <i style={{ background: "#f5c542" }} /> event
+              </span>
+              <span>
+                <i style={{ background: "#4a8fd4" }} /> command
+              </span>
+              <span>
+                <i style={{ background: "#5cb85c" }} /> view
+              </span>
+              <span>
+                <i style={{ background: "#eceff4" }} /> screen
+              </span>
+              <span>
+                <i style={{ background: "#c5d4e8" }} /> trigger
+              </span>
+              <span>
+                <i style={{ background: "#e7dcc6" }} /> automation
+              </span>
+            </div>
+          ) : null}
+          <BoardControls diagramMode={diagramMode} onSetDiagramMode={beginDiagramModeChange} />
+        </div>
       </header>
       <div className="app-body">
-        {diagramMode === "swimlane" ? (
+        {diagramMode === "timeline" ? (
           <WorkflowRouteBar
             options={workflowEventOptions}
             fromEventId={workflowFromEventId}
@@ -627,19 +821,28 @@ export function BlueprintCanvas() {
           />
         ) : null}
         <div
-          className={`canvas-wrap canvas-wrap--${diagramMode}`}
+          className={`canvas-wrap canvas-wrap--${diagramMode}${isMorphing ? " canvas-wrap--morphing" : ""}`}
           ref={canvasRef}
           onDoubleClick={onBoardDoubleClick}
         >
-        <div ref={gutterRef} className="lane-gutter-host">
-          <SwimlaneGutter
-            rows={layout.swimlaneRows}
+        <div
+          ref={gutterRef}
+          className="lane-gutter-host"
+          onDoubleClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+        >
+          <StreamGutter
+            rows={displayStreamRows}
             viewport={flowViewport}
             gutterHeight={gutterHeight}
             emphasis={gutterEmphasis}
             showAll={gutterExpanded}
             bandLabelOverrides={diagramMode === "design" ? { ui: BAND_LABEL_DESIGN_UI } : undefined}
             hideBandLabels={diagramMode === "timeline"}
+            selectedStreamIds={selectedStreamIds}
+            onSelectStream={diagramMode === "stream" ? onSelectStream : undefined}
           />
         </div>
         <div className="react-flow-host">
@@ -676,6 +879,8 @@ export function BlueprintCanvas() {
                 if (k === "command") return "#4a8fd4";
                 if (k === "view") return "#5cb85c";
                 if (k === "screen") return "#eceff4";
+                if (k === "trigger") return "#c5d4e8";
+                if (k === "automation") return "#e7dcc6";
                 return "#243044";
               }}
               maskColor="rgba(15, 20, 25, 0.88)"

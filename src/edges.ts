@@ -6,6 +6,7 @@ export const EdgeRelationSchema = z.enum([
   "produces",
   "updates",
   "rendersOn",
+  "redirectsTo",
   "ordersBefore",
   "loopsBack",
 ]);
@@ -26,10 +27,12 @@ export const ALLOWED_EDGES: Record<
   EdgeRelation,
   { fromTypes: string[]; toTypes: string[] } | null
 > = {
-  issues: { fromTypes: ["screen"], toTypes: ["command"] },
+  issues: { fromTypes: ["screen", "automation", "trigger"], toTypes: ["command"] },
   produces: { fromTypes: ["command"], toTypes: ["event"] },
   updates: { fromTypes: ["event"], toTypes: ["view"] },
   rendersOn: { fromTypes: ["view"], toTypes: ["screen"] },
+  /** Automatic UI handoff (e.g. in-app page → hosted checkout). */
+  redirectsTo: { fromTypes: ["screen", "trigger"], toTypes: ["screen", "trigger"] },
   ordersBefore: { fromTypes: ["event"], toTypes: ["event"] },
   loopsBack: { fromTypes: ["event"], toTypes: ["event"] },
 };

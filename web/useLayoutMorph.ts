@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { NodePosition } from "./layoutMetrics.js";
 
 export const LAYOUT_MORPH_MS = 480;
@@ -40,6 +40,13 @@ function mapsEqual(a: Map<string, NodePosition>, b: Map<string, NodePosition>): 
   return true;
 }
 
+function positionsKey(m: Map<string, NodePosition>): string {
+  return [...m.entries()]
+    .map(([id, p]) => `${id}:${p.x},${p.y}`)
+    .sort()
+    .join("|");
+}
+
 export type LayoutMorphState = {
   positions: Map<string, NodePosition>;
   isMorphing: boolean;
@@ -52,20 +59,27 @@ export function useLayoutMorph(
   const [display, setDisplay] = useState(target);
   const [isMorphing, setIsMorphing] = useState(false);
   const committed = useRef(target);
+  const displayRef = useRef(display);
+  displayRef.current = display;
+  const targetRef = useRef(target);
+  targetRef.current = target;
+  const targetKey = useMemo(() => positionsKey(target), [target]);
 
   useEffect(() => {
-    if (mapsEqual(committed.current, target)) {
+    const next = targetRef.current;
+    if (mapsEqual(committed.current, next)) {
       setIsMorphing(false);
+      if (!mapsEqual(displayRef.current, next)) setDisplay(next);
       return;
     }
 
-    const from = committed.current;
+    const from = displayRef.current;
     const reduced =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced || durationMs <= 0) {
-      committed.current = target;
-      setDisplay(target);
+      committed.current = next;
+      setDisplay(next);
       setIsMorphing(false);
       return;
     }
@@ -73,24 +87,29 @@ export function useLayoutMorph(
     setIsMorphing(true);
     let start: number | null = null;
     let raf = 0;
+    let cancelled = false;
 
     const tick = (now: number) => {
+      if (cancelled) return;
       if (start === null) start = now;
       const raw = Math.min(1, (now - start) / durationMs);
       const t = easeOutCubic(raw);
-      setDisplay(lerpPositions(from, target, t));
+      setDisplay(lerpPositions(from, next, t));
       if (raw < 1) {
         raf = requestAnimationFrame(tick);
       } else {
-        committed.current = target;
-        setDisplay(target);
+        committed.current = next;
+        setDisplay(next);
         setIsMorphing(false);
       }
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs]);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [targetKey, durationMs]);
 
   return { positions: display, isMorphing };
 }

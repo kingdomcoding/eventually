@@ -1,7 +1,7 @@
-import type { SwimlaneBand } from "@schema/document.js";
-import type { SwimlaneRow } from "./layout.js";
+import type { StreamBand } from "@schema/document.js";
+import type { StreamRow } from "./layout.js";
 import { BAND_GAP, LANE_ROW_HEIGHT } from "./layout.js";
-import { BAND_LABEL } from "./swimlaneLabels.js";
+import { BAND_LABEL } from "./streamLabels.js";
 
 export type FlowViewport = { x: number; y: number; zoom: number };
 
@@ -21,29 +21,29 @@ export type LaneRowScreen = {
   centerY: number;
 };
 
-export function laneRowScreenRect(row: SwimlaneRow, viewport: FlowViewport): LaneRowScreen {
+export function laneRowScreenRect(row: StreamRow, viewport: FlowViewport): LaneRowScreen {
   const top = flowYToScreenY(row.y, viewport);
   const laneH = row.height ?? LANE_ROW_HEIGHT;
   const height = flowLenToScreen(laneH, viewport);
   return { laneId: row.id, top, height, centerY: top + height / 2 };
 }
 
-export function allLaneRowsScreen(rows: SwimlaneRow[], viewport: FlowViewport): LaneRowScreen[] {
+export function allLaneRowsScreen(rows: StreamRow[], viewport: FlowViewport): LaneRowScreen[] {
   return rows.map((row) => laneRowScreenRect(row, viewport));
 }
 
 /** @deprecated Use allLaneRowsScreen */
-export function swimlaneRowScreenTops(rows: SwimlaneRow[], viewport: FlowViewport): number[] {
+export function streamRowScreenTops(rows: StreamRow[], viewport: FlowViewport): number[] {
   return rows.map((row) => flowYToScreenY(row.y, viewport));
 }
 
 export type BandGapFlow = {
-  band: SwimlaneBand;
+  band: StreamBand;
   yStart: number;
   yEnd: number;
 };
 
-export function bandGapsFromRows(rows: SwimlaneRow[]): BandGapFlow[] {
+export function bandGapsFromRows(rows: StreamRow[]): BandGapFlow[] {
   const gaps: BandGapFlow[] = [];
   for (let i = 0; i < rows.length - 1; i++) {
     const curr = rows[i]!;
@@ -60,7 +60,7 @@ export function bandGapsFromRows(rows: SwimlaneRow[]): BandGapFlow[] {
 }
 
 export type BandGapScreen = {
-  band: SwimlaneBand;
+  band: StreamBand;
   label: string;
   top: number;
   height: number;
@@ -81,7 +81,7 @@ export function bandGapScreen(gap: BandGapFlow, viewport: FlowViewport): BandGap
 
 export type GutterDivider = { top: number; kind: "band" | "row" };
 
-export function gutterDividers(rows: SwimlaneRow[], viewport: FlowViewport): GutterDivider[] {
+export function gutterDividers(rows: StreamRow[], viewport: FlowViewport): GutterDivider[] {
   const out: GutterDivider[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
@@ -108,13 +108,13 @@ export function shouldShowGapLabel(gapHeight: number, top: number, gutterHeight:
   return rectIntersectsViewport(top, gapHeight, gutterHeight);
 }
 
-export function isFirstRowInBand(rows: SwimlaneRow[], index: number): boolean {
+export function isFirstRowInBand(rows: StreamRow[], index: number): boolean {
   if (index === 0) return true;
   return rows[index - 1]!.band !== rows[index]!.band;
 }
 
 /** Gap before this band (none for first band in document). */
-export function gapBeforeBand(rows: SwimlaneRow[], band: SwimlaneBand): BandGapFlow | null {
+export function gapBeforeBand(rows: StreamRow[], band: StreamBand): BandGapFlow | null {
   const gaps = bandGapsFromRows(rows);
   return gaps.find((g) => g.band === band) ?? null;
 }

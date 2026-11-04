@@ -1,4 +1,4 @@
-export const SWIMLANE_GUTTER = 200;
+export const STREAM_GUTTER = 200;
 export const COL_WIDTH = 340;
 export const MARGIN_X = 48;
 export const LANE_ROW_HEIGHT = 128;
@@ -14,7 +14,7 @@ export const SCREEN_STAGGER_X = NODE_W + 24;
 
 export type NodePosition = { x: number; y: number };
 
-export type SwimlaneRow = {
+export type StreamRow = {
   id: string;
   name: string;
   band: "ui" | "commandView" | "events";
@@ -27,7 +27,7 @@ export type SwimlaneRow = {
 
 export type LayoutResult = {
   positions: Map<string, NodePosition>;
-  swimlaneRows: SwimlaneRow[];
+  streamRows: StreamRow[];
 };
 
 export function yForLaneRow(rowY: number, laneHeight: number = LANE_ROW_HEIGHT): number {
