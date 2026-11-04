@@ -4,7 +4,7 @@
     "id": "apex-bee-streams",
     "name": "Apex Bee — EventStore streams + timeline stack",
     "version": 3,
-    "modelVersion": 6,
+    "modelVersion": 10,
     "narrativeOrder": [
       "evt-device-imported",
       "evt-device-registered",
@@ -33,10 +33,15 @@
       "evt-joint-closed",
       "evt-flag-imported",
       "evt-flag-raised",
-      "evt-flag-resolved"
+      "evt-flag-resolved",
+      "evt-single-charge-initiated",
+      "evt-customer-redirected-to-success",
+      "evt-customer-redirected-to-cancel",
+      "evt-charge-status-verified",
+      "evt-charge-succeeded"
     ]
   },
-  "swimlanes": [
+  "streams": [
     {
       "id": "lane-visitor",
       "name": "Visitor",
@@ -45,7 +50,7 @@
     },
     {
       "id": "lane-authenticated-learner",
-      "name": "Authenticated learner",
+      "name": "Authenticated Learner",
       "band": "ui",
       "order": 1
     },
@@ -160,17 +165,31 @@
       }
     },
     {
+      "id": "stream-paystack-transaction",
+      "name": "Paystack transaction",
+      "band": "events",
+      "order": 3,
+      "streamPattern": "paystack-transaction-{reference}"
+    },
+    {
+      "id": "stream-monify-transaction",
+      "name": "Monify transaction",
+      "band": "events",
+      "order": 4,
+      "streamPattern": "monify-transaction-{reference}"
+    },
+    {
       "id": "stream-attempt",
       "name": "Exam attempt",
       "band": "events",
-      "order": 3,
+      "order": 5,
       "streamPattern": "attempt-{attemptId}"
     },
     {
       "id": "stream-interview",
       "name": "Interview session",
       "band": "events",
-      "order": 4,
+      "order": 6,
       "streamPattern": "interview-{sessionId}",
       "streamShape": {
         "exitOneOf": [
@@ -198,21 +217,21 @@
       "id": "stream-group",
       "name": "Study group",
       "band": "events",
-      "order": 5,
+      "order": 7,
       "streamPattern": "group-{cohortId}"
     },
     {
       "id": "stream-joint",
       "name": "Joint exam",
       "band": "events",
-      "order": 6,
+      "order": 8,
       "streamPattern": "session-{sessionId}"
     },
     {
       "id": "stream-flag",
       "name": "Question flag",
       "band": "events",
-      "order": 7,
+      "order": 9,
       "streamPattern": "flag-{flagId}",
       "streamShape": {
         "entryOneOf": [
@@ -235,8 +254,8 @@
     {
       "type": "event",
       "id": "evt-device-imported",
-      "name": "DeviceImportedV1",
-      "swimlaneId": "stream-device",
+      "name": "Device Imported V1",
+      "streamId": "stream-device",
       "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
@@ -253,8 +272,8 @@
     {
       "type": "event",
       "id": "evt-device-registered",
-      "name": "DeviceRegisteredV1",
-      "swimlaneId": "stream-device",
+      "name": "Device Registered V1",
+      "streamId": "stream-device",
       "sliceId": "slice-auth",
       "timelineIndex": 1,
       "payload": [
@@ -271,8 +290,8 @@
     {
       "type": "event",
       "id": "evt-device-revoked",
-      "name": "DeviceRevokedV1",
-      "swimlaneId": "stream-device",
+      "name": "Device Revoked V1",
+      "streamId": "stream-device",
       "sliceId": "slice-auth",
       "timelineIndex": 2,
       "payload": [
@@ -289,8 +308,8 @@
     {
       "type": "event",
       "id": "evt-entitlement-imported",
-      "name": "EntitlementImportedV1",
-      "swimlaneId": "stream-subscription",
+      "name": "Entitlement Imported V1",
+      "streamId": "stream-subscription",
       "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
@@ -307,8 +326,8 @@
     {
       "type": "event",
       "id": "evt-trial-started",
-      "name": "TrialStartedV1",
-      "swimlaneId": "stream-subscription",
+      "name": "Trial Started V1",
+      "streamId": "stream-subscription",
       "sliceId": "slice-auth",
       "timelineIndex": 1,
       "payload": [
@@ -325,8 +344,8 @@
     {
       "type": "event",
       "id": "evt-subscription-activated",
-      "name": "SubscriptionActivatedV1",
-      "swimlaneId": "stream-subscription",
+      "name": "Subscription Activated V1",
+      "streamId": "stream-subscription",
       "sliceId": "slice-billing",
       "timelineIndex": 2,
       "payload": [
@@ -343,8 +362,8 @@
     {
       "type": "event",
       "id": "evt-subscription-updated",
-      "name": "SubscriptionUpdatedV1",
-      "swimlaneId": "stream-subscription",
+      "name": "Subscription Updated V1",
+      "streamId": "stream-subscription",
       "sliceId": "slice-billing",
       "timelineIndex": 3,
       "payload": [
@@ -361,8 +380,8 @@
     {
       "type": "event",
       "id": "evt-subscription-cancelled",
-      "name": "SubscriptionCancelledV1",
-      "swimlaneId": "stream-subscription",
+      "name": "Subscription Cancelled V1",
+      "streamId": "stream-subscription",
       "sliceId": "slice-billing",
       "timelineIndex": 4,
       "payload": [
@@ -379,8 +398,8 @@
     {
       "type": "event",
       "id": "evt-payment-initiated",
-      "name": "PaymentInitiatedV1",
-      "swimlaneId": "stream-payment",
+      "name": "Payment Initiated V1",
+      "streamId": "stream-payment",
       "sliceId": "slice-billing",
       "timelineIndex": 0,
       "payload": [
@@ -397,8 +416,8 @@
     {
       "type": "event",
       "id": "evt-payment-confirmed",
-      "name": "PaymentConfirmedV1",
-      "swimlaneId": "stream-payment",
+      "name": "Payment Confirmed V1",
+      "streamId": "stream-payment",
       "sliceId": "slice-billing",
       "timelineIndex": 1,
       "payload": [
@@ -415,8 +434,8 @@
     {
       "type": "event",
       "id": "evt-payment-imported",
-      "name": "PaymentImportedV1",
-      "swimlaneId": "stream-payment",
+      "name": "Payment Imported V1",
+      "streamId": "stream-payment",
       "sliceId": "slice-billing",
       "timelineIndex": 2,
       "payload": [
@@ -433,8 +452,8 @@
     {
       "type": "event",
       "id": "evt-manual-payment",
-      "name": "ManualPaymentRecordedV1",
-      "swimlaneId": "stream-payment",
+      "name": "Manual Payment Recorded V1",
+      "streamId": "stream-payment",
       "sliceId": "slice-billing",
       "timelineIndex": 3,
       "payload": [
@@ -451,8 +470,8 @@
     {
       "type": "event",
       "id": "evt-exam-submitted",
-      "name": "ExamSubmittedV1",
-      "swimlaneId": "stream-attempt",
+      "name": "Exam Submitted V1",
+      "streamId": "stream-attempt",
       "sliceId": "slice-exam",
       "timelineIndex": 0,
       "payload": [
@@ -469,8 +488,8 @@
     {
       "type": "event",
       "id": "evt-interview-started",
-      "name": "InterviewSessionStartedV1",
-      "swimlaneId": "stream-interview",
+      "name": "Interview Session Started V1",
+      "streamId": "stream-interview",
       "sliceId": "slice-interview",
       "timelineIndex": 0,
       "payload": [
@@ -487,8 +506,8 @@
     {
       "type": "event",
       "id": "evt-interview-scored",
-      "name": "InterviewAnswerScoredV1",
-      "swimlaneId": "stream-interview",
+      "name": "Interview Answer Scored V1",
+      "streamId": "stream-interview",
       "sliceId": "slice-interview",
       "timelineIndex": 1,
       "payload": [
@@ -505,8 +524,8 @@
     {
       "type": "event",
       "id": "evt-interview-advanced",
-      "name": "InterviewQuestionAdvancedV1",
-      "swimlaneId": "stream-interview",
+      "name": "Interview Question Advanced V1",
+      "streamId": "stream-interview",
       "sliceId": "slice-interview",
       "timelineIndex": 2,
       "payload": [
@@ -523,8 +542,8 @@
     {
       "type": "event",
       "id": "evt-interview-finished",
-      "name": "InterviewSessionFinishedV1",
-      "swimlaneId": "stream-interview",
+      "name": "Interview Session Finished V1",
+      "streamId": "stream-interview",
       "sliceId": "slice-interview",
       "timelineIndex": 3,
       "payload": [
@@ -541,8 +560,8 @@
     {
       "type": "event",
       "id": "evt-interview-abandoned",
-      "name": "InterviewSessionAbandonedV1",
-      "swimlaneId": "stream-interview",
+      "name": "Interview Session Abandoned V1",
+      "streamId": "stream-interview",
       "sliceId": "slice-interview",
       "timelineIndex": 4,
       "payload": [
@@ -559,8 +578,8 @@
     {
       "type": "event",
       "id": "evt-group-created",
-      "name": "GroupCreatedV1",
-      "swimlaneId": "stream-group",
+      "name": "Group Created V1",
+      "streamId": "stream-group",
       "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
@@ -577,8 +596,8 @@
     {
       "type": "event",
       "id": "evt-join-code-set",
-      "name": "JoinCodeSetV1",
-      "swimlaneId": "stream-group",
+      "name": "Join Code Set V1",
+      "streamId": "stream-group",
       "sliceId": "slice-groups",
       "timelineIndex": 1,
       "payload": [
@@ -595,8 +614,8 @@
     {
       "type": "event",
       "id": "evt-group-settings-updated",
-      "name": "GroupSettingsUpdatedV1",
-      "swimlaneId": "stream-group",
+      "name": "Group Settings Updated V1",
+      "streamId": "stream-group",
       "sliceId": "slice-ops",
       "timelineIndex": 4,
       "payload": [
@@ -613,8 +632,8 @@
     {
       "type": "event",
       "id": "evt-member-joined",
-      "name": "MemberJoinedV1",
-      "swimlaneId": "stream-group",
+      "name": "Member Joined V1",
+      "streamId": "stream-group",
       "sliceId": "slice-groups",
       "timelineIndex": 2,
       "payload": [
@@ -631,8 +650,8 @@
     {
       "type": "event",
       "id": "evt-member-left",
-      "name": "MemberLeftV1",
-      "swimlaneId": "stream-group",
+      "name": "Member Left V1",
+      "streamId": "stream-group",
       "sliceId": "slice-groups",
       "timelineIndex": 3,
       "payload": [
@@ -649,8 +668,8 @@
     {
       "type": "event",
       "id": "evt-joint-opened",
-      "name": "JointExamOpenedV1",
-      "swimlaneId": "stream-joint",
+      "name": "Joint Exam Opened V1",
+      "streamId": "stream-joint",
       "sliceId": "slice-groups",
       "timelineIndex": 0,
       "payload": [
@@ -667,8 +686,8 @@
     {
       "type": "event",
       "id": "evt-joint-closed",
-      "name": "JointExamClosedV1",
-      "swimlaneId": "stream-joint",
+      "name": "Joint Exam Closed V1",
+      "streamId": "stream-joint",
       "sliceId": "slice-groups",
       "timelineIndex": 1,
       "payload": [
@@ -685,8 +704,8 @@
     {
       "type": "event",
       "id": "evt-flag-imported",
-      "name": "FlagImportedV1",
-      "swimlaneId": "stream-flag",
+      "name": "Flag Imported V1",
+      "streamId": "stream-flag",
       "sliceId": "slice-ops",
       "timelineIndex": 0,
       "payload": [
@@ -703,8 +722,8 @@
     {
       "type": "event",
       "id": "evt-flag-raised",
-      "name": "FlagRaisedV1",
-      "swimlaneId": "stream-flag",
+      "name": "Flag Raised V1",
+      "streamId": "stream-flag",
       "sliceId": "slice-trust",
       "timelineIndex": 1,
       "payload": [
@@ -721,8 +740,8 @@
     {
       "type": "event",
       "id": "evt-flag-resolved",
-      "name": "FlagResolvedV1",
-      "swimlaneId": "stream-flag",
+      "name": "Flag Resolved V1",
+      "streamId": "stream-flag",
       "sliceId": "slice-trust",
       "timelineIndex": 2,
       "payload": [
@@ -737,10 +756,87 @@
       ]
     },
     {
+      "type": "event",
+      "id": "evt-single-charge-initiated",
+      "name": "Single Charge Initiated",
+      "streamId": "stream-paystack-transaction",
+      "sliceId": "slice-billing",
+      "timelineIndex": 0,
+      "payload": [],
+      "fields": [
+        {
+          "name": "transaction_id",
+          "type": "string",
+          "description": "Transaction ID for this charge. Source TBD."
+        },
+        {
+          "name": "status",
+          "type": "boolean",
+          "description": "Whether POST /transaction/initialize succeeded. This is the API call, not whether the customer paid."
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "description": "Paystack's message for the initialize call. The sample is \"Authorization URL created\"."
+        },
+        {
+          "name": "authorization_url",
+          "type": "string",
+          "description": "Hosted checkout URL from data.authorization_url. The customer is sent here."
+        },
+        {
+          "name": "access_code",
+          "type": "string",
+          "description": "Checkout access code from data.access_code."
+        },
+        {
+          "name": "reference",
+          "type": "string",
+          "description": "Transaction reference from data.reference. Later verify and webhooks use this."
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "id": "evt-customer-redirected-to-success",
+      "name": "Customer Redirected To Success Page",
+      "streamId": "stream-paystack-transaction",
+      "sliceId": "slice-billing",
+      "timelineIndex": 1,
+      "payload": []
+    },
+    {
+      "type": "event",
+      "id": "evt-customer-redirected-to-cancel",
+      "name": "Customer Redirected To Cancel",
+      "streamId": "stream-paystack-transaction",
+      "sliceId": "slice-billing",
+      "timelineIndex": 2,
+      "payload": []
+    },
+    {
+      "type": "event",
+      "id": "evt-charge-status-verified",
+      "name": "Charge Status Verified",
+      "streamId": "stream-paystack-transaction",
+      "sliceId": "slice-billing",
+      "timelineIndex": 3,
+      "payload": []
+    },
+    {
+      "type": "event",
+      "id": "evt-charge-succeeded",
+      "name": "Charge Succeeded",
+      "streamId": "stream-paystack-transaction",
+      "sliceId": "slice-billing",
+      "timelineIndex": 4,
+      "payload": []
+    },
+    {
       "type": "command",
       "id": "cmd-import-device",
-      "name": "ImportDevice",
-      "swimlaneId": "lane-writes",
+      "name": "Import Device",
+      "streamId": "lane-writes",
       "sliceId": "slice-ops",
       "input": [],
       "produces": [
@@ -751,8 +847,8 @@
     {
       "type": "command",
       "id": "cmd-register-device",
-      "name": "RegisterDevice",
-      "swimlaneId": "lane-writes",
+      "name": "Register Device",
+      "streamId": "lane-writes",
       "sliceId": "slice-auth",
       "input": [],
       "produces": [
@@ -763,8 +859,8 @@
     {
       "type": "command",
       "id": "cmd-revoke-device",
-      "name": "RevokeDevice",
-      "swimlaneId": "lane-writes",
+      "name": "Revoke Device",
+      "streamId": "lane-writes",
       "sliceId": "slice-auth",
       "input": [],
       "produces": [
@@ -775,8 +871,8 @@
     {
       "type": "command",
       "id": "cmd-import-entitlement",
-      "name": "ImportEntitlement",
-      "swimlaneId": "lane-writes",
+      "name": "Import Entitlement",
+      "streamId": "lane-writes",
       "sliceId": "slice-ops",
       "input": [],
       "produces": [
@@ -787,8 +883,8 @@
     {
       "type": "command",
       "id": "cmd-start-trial",
-      "name": "StartTrial",
-      "swimlaneId": "lane-writes",
+      "name": "Start Trial",
+      "streamId": "lane-writes",
       "sliceId": "slice-auth",
       "input": [],
       "produces": [
@@ -799,8 +895,8 @@
     {
       "type": "command",
       "id": "cmd-activate-subscription",
-      "name": "ActivateSubscription",
-      "swimlaneId": "lane-writes",
+      "name": "Activate Subscription",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -811,8 +907,8 @@
     {
       "type": "command",
       "id": "cmd-update-subscription",
-      "name": "UpdateSubscription",
-      "swimlaneId": "lane-writes",
+      "name": "Update Subscription",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -823,8 +919,8 @@
     {
       "type": "command",
       "id": "cmd-cancel-subscription",
-      "name": "CancelSubscription",
-      "swimlaneId": "lane-writes",
+      "name": "Cancel Subscription",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -835,8 +931,8 @@
     {
       "type": "command",
       "id": "cmd-initiate-payment",
-      "name": "InitiatePayment",
-      "swimlaneId": "lane-writes",
+      "name": "Initiate Payment",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -846,9 +942,125 @@
     },
     {
       "type": "command",
+      "id": "cmd-initiate-single-charge",
+      "name": "Initiate Single Charge",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [
+        {
+          "name": "email",
+          "type": "string",
+          "optional": false,
+          "source": {
+            "kind": "user"
+          }
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "optional": false,
+          "source": {
+            "kind": "user"
+          }
+        }
+      ],
+      "produces": [
+        "evt-single-charge-initiated"
+      ],
+      "rejections": [],
+      "fields": [
+        {
+          "name": "email",
+          "type": "string",
+          "description": "User email from the Pay with Paystack Button. Paystack initialize requires the customer's email."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "Amount to be paid in kobo, from the Pay with Paystack Button."
+        }
+      ],
+      "apiClientResponse": [
+        {
+          "label": "Success",
+          "fields": [
+            {
+              "name": "status",
+              "type": "boolean",
+              "description": "Paystack POST /transaction/initialize succeeded (true). This is the API call, not whether the customer paid."
+            },
+            {
+              "name": "message",
+              "type": "string",
+              "description": "Paystack message for a successful initialize. Sample: \"Authorization URL created\"."
+            },
+            {
+              "name": "data.authorization_url",
+              "type": "string",
+              "description": "Hosted checkout URL from data.authorization_url. The customer is sent here."
+            },
+            {
+              "name": "data.access_code",
+              "type": "string",
+              "description": "Checkout access code from data.access_code."
+            },
+            {
+              "name": "data.reference",
+              "type": "string",
+              "description": "Transaction reference from data.reference. Later verify and webhooks use this. Populates SingleChargeInitiated."
+            }
+          ]
+        },
+        {
+          "label": "Error",
+          "fields": [
+            {
+              "name": "status",
+              "type": "boolean",
+              "description": "Paystack request failed (false)."
+            },
+            {
+              "name": "message",
+              "type": "string",
+              "description": "Brief description of the error. Examples: \"Invalid Amount Sent\", \"Email Address is required\", \"Invalid key\"."
+            },
+            {
+              "name": "type",
+              "type": "string",
+              "description": "Error category from Paystack: api_error, validation_error, or processor_error."
+            },
+            {
+              "name": "code",
+              "type": "string",
+              "description": "Paystack-defined error code that categorizes the failure (e.g. missing_params)."
+            },
+            {
+              "name": "meta.nextStep",
+              "type": "string",
+              "description": "Suggested action to resolve the issue from the error meta object."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "command",
+      "id": "cmd-redirect-to-success-page",
+      "name": "Mark Customer Visit to Success Page",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [],
+      "produces": [
+        "evt-customer-redirected-to-success"
+      ],
+      "rejections": [],
+      "notes": "Records that the customer visited the Paystack payment success page."
+    },
+    {
+      "type": "command",
       "id": "cmd-confirm-payment",
-      "name": "ConfirmPayment",
-      "swimlaneId": "lane-writes",
+      "name": "Confirm Payment",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -859,8 +1071,8 @@
     {
       "type": "command",
       "id": "cmd-import-payment",
-      "name": "ImportPayment",
-      "swimlaneId": "lane-writes",
+      "name": "Import Payment",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -871,8 +1083,8 @@
     {
       "type": "command",
       "id": "cmd-record-manual-payment",
-      "name": "RecordManualPayment",
-      "swimlaneId": "lane-writes",
+      "name": "Record Manual Payment",
+      "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
       "produces": [
@@ -883,8 +1095,8 @@
     {
       "type": "command",
       "id": "cmd-submit-exam",
-      "name": "SubmitExam",
-      "swimlaneId": "lane-writes",
+      "name": "Submit Exam",
+      "streamId": "lane-writes",
       "sliceId": "slice-exam",
       "input": [],
       "produces": [
@@ -895,8 +1107,8 @@
     {
       "type": "command",
       "id": "cmd-start-interview-session",
-      "name": "StartSession",
-      "swimlaneId": "lane-writes",
+      "name": "Start Session",
+      "streamId": "lane-writes",
       "sliceId": "slice-interview",
       "input": [],
       "produces": [
@@ -907,8 +1119,8 @@
     {
       "type": "command",
       "id": "cmd-score-interview-answer",
-      "name": "ScoreAnswer",
-      "swimlaneId": "lane-writes",
+      "name": "Score Answer",
+      "streamId": "lane-writes",
       "sliceId": "slice-interview",
       "input": [],
       "produces": [
@@ -919,8 +1131,8 @@
     {
       "type": "command",
       "id": "cmd-advance-interview-question",
-      "name": "AdvanceQuestion",
-      "swimlaneId": "lane-writes",
+      "name": "Advance Question",
+      "streamId": "lane-writes",
       "sliceId": "slice-interview",
       "input": [],
       "produces": [
@@ -931,8 +1143,8 @@
     {
       "type": "command",
       "id": "cmd-finish-interview-session",
-      "name": "FinishSession",
-      "swimlaneId": "lane-writes",
+      "name": "Finish Session",
+      "streamId": "lane-writes",
       "sliceId": "slice-interview",
       "input": [],
       "produces": [
@@ -943,8 +1155,8 @@
     {
       "type": "command",
       "id": "cmd-abandon-interview-session",
-      "name": "AbandonSession",
-      "swimlaneId": "lane-writes",
+      "name": "Abandon Session",
+      "streamId": "lane-writes",
       "sliceId": "slice-interview",
       "input": [],
       "produces": [
@@ -955,8 +1167,8 @@
     {
       "type": "command",
       "id": "cmd-create-group",
-      "name": "CreateGroup",
-      "swimlaneId": "lane-writes",
+      "name": "Create Group",
+      "streamId": "lane-writes",
       "sliceId": "slice-ops",
       "input": [],
       "produces": [
@@ -967,8 +1179,8 @@
     {
       "type": "command",
       "id": "cmd-set-join-code",
-      "name": "SetJoinCode",
-      "swimlaneId": "lane-writes",
+      "name": "Set Join Code",
+      "streamId": "lane-writes",
       "sliceId": "slice-groups",
       "input": [],
       "produces": [
@@ -979,8 +1191,8 @@
     {
       "type": "command",
       "id": "cmd-join-group",
-      "name": "JoinGroup",
-      "swimlaneId": "lane-writes",
+      "name": "Join Group",
+      "streamId": "lane-writes",
       "sliceId": "slice-groups",
       "input": [],
       "produces": [
@@ -991,8 +1203,8 @@
     {
       "type": "command",
       "id": "cmd-leave-group",
-      "name": "LeaveGroup",
-      "swimlaneId": "lane-writes",
+      "name": "Leave Group",
+      "streamId": "lane-writes",
       "sliceId": "slice-groups",
       "input": [],
       "produces": [
@@ -1004,8 +1216,8 @@
     {
       "type": "command",
       "id": "cmd-update-group-settings",
-      "name": "UpdateGroupSettings",
-      "swimlaneId": "lane-writes",
+      "name": "Update Group Settings",
+      "streamId": "lane-writes",
       "sliceId": "slice-ops",
       "input": [],
       "produces": [
@@ -1016,8 +1228,8 @@
     {
       "type": "command",
       "id": "cmd-open-joint-exam",
-      "name": "OpenJointExam",
-      "swimlaneId": "lane-writes",
+      "name": "Open Joint Exam",
+      "streamId": "lane-writes",
       "sliceId": "slice-groups",
       "input": [],
       "produces": [
@@ -1028,8 +1240,8 @@
     {
       "type": "command",
       "id": "cmd-close-joint-exam",
-      "name": "CloseJointExam",
-      "swimlaneId": "lane-writes",
+      "name": "Close Joint Exam",
+      "streamId": "lane-writes",
       "sliceId": "slice-groups",
       "input": [],
       "produces": [
@@ -1040,8 +1252,8 @@
     {
       "type": "command",
       "id": "cmd-import-flag",
-      "name": "ImportFlag",
-      "swimlaneId": "lane-writes",
+      "name": "Import Flag",
+      "streamId": "lane-writes",
       "sliceId": "slice-ops",
       "input": [],
       "produces": [
@@ -1052,8 +1264,8 @@
     {
       "type": "command",
       "id": "cmd-raise-flag",
-      "name": "RaiseFlag",
-      "swimlaneId": "lane-writes",
+      "name": "Raise Flag",
+      "streamId": "lane-writes",
       "sliceId": "slice-trust",
       "input": [],
       "produces": [
@@ -1064,8 +1276,8 @@
     {
       "type": "command",
       "id": "cmd-resolve-flag",
-      "name": "ResolveFlag",
-      "swimlaneId": "lane-writes",
+      "name": "Resolve Flag",
+      "streamId": "lane-writes",
       "sliceId": "slice-trust",
       "input": [],
       "produces": [
@@ -1074,10 +1286,171 @@
       "rejections": []
     },
     {
+      "type": "view",
+      "id": "view-devices",
+      "name": "Devices",
+      "streamId": "lane-writes",
+      "sliceId": "slice-auth",
+      "fields": [],
+      "fedBy": [
+        "evt-device-imported",
+        "evt-device-registered",
+        "evt-device-revoked"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-entitlement",
+      "name": "Entitlement",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "fields": [],
+      "fedBy": [
+        "evt-entitlement-imported",
+        "evt-trial-started",
+        "evt-subscription-activated",
+        "evt-subscription-updated",
+        "evt-subscription-cancelled"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-payments",
+      "name": "Payments",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "fields": [],
+      "fedBy": [
+        "evt-payment-initiated",
+        "evt-payment-confirmed",
+        "evt-payment-imported",
+        "evt-manual-payment"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-paystack-checkout",
+      "name": "Initiated Transactions",
+      "streamId": "lane-writes",
+      "sliceId": "slice-paystack-checkout",
+      "fields": [
+        {
+          "name": "transaction_id",
+          "type": "string",
+          "optional": false,
+          "source": {
+            "kind": "fromEvent",
+            "eventId": "evt-single-charge-initiated",
+            "field": "transaction_id"
+          }
+        },
+        {
+          "name": "authorization_url",
+          "type": "string",
+          "optional": false,
+          "source": {
+            "kind": "fromEvent",
+            "eventId": "evt-single-charge-initiated",
+            "field": "authorization_url"
+          }
+        }
+      ],
+      "fedBy": [
+        "evt-single-charge-initiated"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-attempts",
+      "name": "Attempts",
+      "streamId": "lane-writes",
+      "sliceId": "slice-exam",
+      "fields": [],
+      "fedBy": [
+        "evt-exam-submitted"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-interview-session",
+      "name": "Interview Session",
+      "streamId": "lane-writes",
+      "sliceId": "slice-interview",
+      "fields": [],
+      "fedBy": [
+        "evt-interview-started",
+        "evt-interview-scored",
+        "evt-interview-advanced",
+        "evt-interview-finished",
+        "evt-interview-abandoned"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-interview-review",
+      "name": "Interview Review",
+      "streamId": "lane-writes",
+      "sliceId": "slice-interview",
+      "fields": [],
+      "fedBy": [
+        "evt-interview-scored"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-groups",
+      "name": "Study Groups",
+      "streamId": "lane-writes",
+      "sliceId": "slice-groups",
+      "fields": [],
+      "fedBy": [
+        "evt-group-created",
+        "evt-group-settings-updated",
+        "evt-join-code-set"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-memberships",
+      "name": "Memberships",
+      "streamId": "lane-writes",
+      "sliceId": "slice-groups",
+      "fields": [],
+      "fedBy": [
+        "evt-member-joined",
+        "evt-member-left"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-joint-sessions",
+      "name": "Joint Sessions",
+      "streamId": "lane-writes",
+      "sliceId": "slice-groups",
+      "fields": [],
+      "fedBy": [
+        "evt-joint-opened",
+        "evt-joint-closed"
+      ]
+    },
+    {
+      "type": "view",
+      "id": "view-flags",
+      "name": "Question Flags",
+      "streamId": "lane-writes",
+      "sliceId": "slice-trust",
+      "fields": [],
+      "fedBy": [
+        "evt-flag-imported",
+        "evt-flag-raised",
+        "evt-flag-resolved"
+      ]
+    },
+    {
       "type": "screen",
       "id": "scr-auth-google",
       "name": "Google sign-in",
-      "swimlaneId": "lane-visitor",
+      "streamId": "lane-visitor",
       "sliceId": "slice-auth",
       "actor": "Visitor",
       "bindings": [],
@@ -1087,7 +1460,7 @@
       "type": "screen",
       "id": "scr-mobile-auth",
       "name": "Mobile sign-in",
-      "swimlaneId": "lane-visitor",
+      "streamId": "lane-visitor",
       "sliceId": "slice-auth",
       "actor": "Visitor",
       "bindings": [],
@@ -1097,9 +1470,9 @@
       "type": "screen",
       "id": "scr-settings-devices",
       "name": "Settings · devices",
-      "swimlaneId": "lane-authenticated-learner",
+      "streamId": "lane-authenticated-learner",
       "sliceId": "slice-auth",
-      "actor": "Authenticated learner",
+      "actor": "Authenticated Learner",
       "bindings": [],
       "notes": "SettingsLive revoke_device"
     },
@@ -1107,37 +1480,96 @@
       "type": "screen",
       "id": "scr-mobile-settings",
       "name": "Mobile · devices",
-      "swimlaneId": "lane-authenticated-learner",
+      "streamId": "lane-authenticated-learner",
       "sliceId": "slice-auth",
-      "actor": "Authenticated learner",
+      "actor": "Authenticated Learner",
       "bindings": [],
       "notes": "DELETE /api/mobile/v1/devices/:token"
     },
     {
       "type": "screen",
-      "id": "scr-sys-device-cap",
-      "name": "Device cap (system)",
-      "swimlaneId": "lane-visitor",
-      "sliceId": "slice-auth",
-      "actor": "System",
-      "bindings": [],
-      "notes": "Accounts.register_device revokes 3rd device"
-    },
-    {
-      "type": "screen",
       "id": "scr-subscription",
       "name": "Subscription checkout",
-      "swimlaneId": "lane-subscriber",
+      "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "actor": "Subscriber",
       "bindings": [],
       "notes": "/settings/subscription — start_checkout, cancel"
     },
     {
+      "type": "trigger",
+      "id": "trg-pay-with-paystack",
+      "name": "Pay with Paystack Button",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-billing",
+      "actor": "Subscriber",
+      "parents": [
+        "Purchase License Page"
+      ],
+      "fields": [
+        {
+          "name": "email",
+          "type": "string",
+          "description": "The user's email for the person paying with this button. Paystack requires email."
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "description": "The amount to be paid, in kobo."
+        }
+      ]
+    },
+    {
+      "type": "screen",
+      "id": "scr-payment-page",
+      "name": "Purchase License Page",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "bindings": [
+        {
+          "uiField": "transaction_id",
+          "target": {
+            "kind": "viewField",
+            "viewId": "view-paystack-checkout",
+            "field": "transaction_id"
+          }
+        },
+        {
+          "uiField": "authorization_url",
+          "target": {
+            "kind": "viewField",
+            "viewId": "view-paystack-checkout",
+            "field": "authorization_url"
+          }
+        }
+      ],
+      "notes": "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the Pay with Paystack Button path."
+    },
+    {
+      "type": "trigger",
+      "id": "trg-paystack-checkout",
+      "name": "Paystack Checkout Page",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "external": true,
+      "notes": "EXTERNAL — Hosted Paystack checkout outside the product. Customer pays here before returning to success or cancel."
+    },
+    {
+      "type": "trigger",
+      "id": "trg-success-page",
+      "name": "Paystack Payment Success Page",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "notes": "In-app success return after Paystack checkout; issues Mark Customer Visit to Success Page."
+    },
+    {
       "type": "screen",
       "id": "scr-pay-return",
       "name": "Payment return",
-      "swimlaneId": "lane-subscriber",
+      "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "actor": "Subscriber",
       "bindings": [],
@@ -1147,7 +1579,7 @@
       "type": "screen",
       "id": "scr-mobile-billing",
       "name": "Mobile billing",
-      "swimlaneId": "lane-subscriber",
+      "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "actor": "Subscriber",
       "bindings": [],
@@ -1155,49 +1587,9 @@
     },
     {
       "type": "screen",
-      "id": "scr-sys-webhook-paystack",
-      "name": "Paystack webhooks",
-      "swimlaneId": "lane-subscriber",
-      "sliceId": "slice-billing",
-      "actor": "Paystack",
-      "bindings": [],
-      "notes": "POST /webhooks/paystack"
-    },
-    {
-      "type": "screen",
-      "id": "scr-sys-webhook-monnify",
-      "name": "Monnify webhooks",
-      "swimlaneId": "lane-subscriber",
-      "sliceId": "slice-billing",
-      "actor": "Monnify",
-      "bindings": [],
-      "notes": "POST /webhooks/monnify"
-    },
-    {
-      "type": "screen",
-      "id": "scr-sys-billing-reconcile",
-      "name": "Billing reconcile",
-      "swimlaneId": "lane-subscriber",
-      "sliceId": "slice-billing",
-      "actor": "System",
-      "bindings": [],
-      "notes": "Billing.reconcile_reference / return URL"
-    },
-    {
-      "type": "screen",
-      "id": "scr-sys-billing-poll",
-      "name": "Billing poll & renew",
-      "swimlaneId": "lane-subscriber",
-      "sliceId": "slice-billing",
-      "actor": "System",
-      "bindings": [],
-      "notes": "Billing.poll_all, Monnify renewals"
-    },
-    {
-      "type": "screen",
       "id": "scr-sys-grant-manual",
       "name": "Manual payment (ops)",
-      "swimlaneId": "lane-product-admin",
+      "streamId": "lane-product-admin",
       "sliceId": "slice-billing",
       "actor": "Product admin",
       "bindings": [],
@@ -1207,9 +1599,9 @@
       "type": "screen",
       "id": "scr-me-hub",
       "name": "Practice hub",
-      "swimlaneId": "lane-authenticated-learner",
+      "streamId": "lane-authenticated-learner",
       "sliceId": "slice-exam",
-      "actor": "Authenticated learner",
+      "actor": "Authenticated Learner",
       "bindings": [],
       "notes": "/me/:slug — exam submit, flag during drill/exam"
     },
@@ -1217,7 +1609,7 @@
       "type": "screen",
       "id": "scr-joint-exam",
       "name": "Joint exam",
-      "swimlaneId": "lane-group-member",
+      "streamId": "lane-group-member",
       "sliceId": "slice-exam",
       "actor": "Group member",
       "bindings": [],
@@ -1227,9 +1619,9 @@
       "type": "screen",
       "id": "scr-mobile-practice",
       "name": "Mobile practice",
-      "swimlaneId": "lane-authenticated-learner",
+      "streamId": "lane-authenticated-learner",
       "sliceId": "slice-exam",
-      "actor": "Authenticated learner",
+      "actor": "Authenticated Learner",
       "bindings": [],
       "notes": "POST /api/mobile/v1/exams/submit, /questions/flag"
     },
@@ -1237,9 +1629,9 @@
       "type": "screen",
       "id": "scr-interview",
       "name": "Interview drill",
-      "swimlaneId": "lane-authenticated-learner",
+      "streamId": "lane-authenticated-learner",
       "sliceId": "slice-interview",
-      "actor": "Authenticated learner",
+      "actor": "Authenticated Learner",
       "bindings": [],
       "notes": "/interview — MeLive interview flow (web only)"
     },
@@ -1247,7 +1639,7 @@
       "type": "screen",
       "id": "scr-study-group",
       "name": "Study group admin",
-      "swimlaneId": "lane-group-host",
+      "streamId": "lane-group-host",
       "sliceId": "slice-groups",
       "actor": "Group host",
       "bindings": [],
@@ -1257,7 +1649,7 @@
       "type": "screen",
       "id": "scr-join-group",
       "name": "Join study group",
-      "swimlaneId": "lane-group-member",
+      "streamId": "lane-group-member",
       "sliceId": "slice-groups",
       "actor": "Group member",
       "bindings": [],
@@ -1267,7 +1659,7 @@
       "type": "screen",
       "id": "scr-mobile-join-group",
       "name": "Mobile · join group",
-      "swimlaneId": "lane-group-member",
+      "streamId": "lane-group-member",
       "sliceId": "slice-groups",
       "actor": "Group member",
       "bindings": [],
@@ -1277,7 +1669,7 @@
       "type": "screen",
       "id": "scr-mobile-study-groups",
       "name": "Mobile · group host",
-      "swimlaneId": "lane-group-host",
+      "streamId": "lane-group-host",
       "sliceId": "slice-groups",
       "actor": "Group host",
       "bindings": [],
@@ -1287,20 +1679,74 @@
       "type": "screen",
       "id": "scr-settings-admin",
       "name": "Settings · admin",
-      "swimlaneId": "lane-product-admin",
+      "streamId": "lane-product-admin",
       "sliceId": "slice-trust",
       "actor": "Product admin",
       "bindings": [],
       "notes": "/settings/admin — resolve_flag"
     },
     {
-      "type": "screen",
-      "id": "scr-int-ops",
-      "name": "Ops & migration",
-      "swimlaneId": "lane-product-admin",
+      "type": "automation",
+      "id": "auto-device-cap",
+      "name": "Device cap",
+      "streamId": "lane-visitor",
+      "sliceId": "slice-auth",
+      "observes": [
+        "view-devices"
+      ],
+      "notes": "Accounts.register_device revokes the oldest device past the cap"
+    },
+    {
+      "type": "automation",
+      "id": "auto-paystack-webhook",
+      "name": "Paystack webhook",
+      "streamId": "lane-subscriber",
+      "sliceId": "slice-billing",
+      "observes": [
+        "view-payments"
+      ],
+      "notes": "POST /webhooks/paystack — translation into billing commands"
+    },
+    {
+      "type": "automation",
+      "id": "auto-monnify-webhook",
+      "name": "Monnify webhook",
+      "streamId": "lane-subscriber",
+      "sliceId": "slice-billing",
+      "observes": [
+        "view-payments"
+      ],
+      "notes": "POST /webhooks/monnify"
+    },
+    {
+      "type": "automation",
+      "id": "auto-billing-reconcile",
+      "name": "Billing reconcile",
+      "streamId": "lane-subscriber",
+      "sliceId": "slice-billing",
+      "observes": [
+        "view-payments"
+      ],
+      "notes": "Billing.reconcile_reference on return URL"
+    },
+    {
+      "type": "automation",
+      "id": "auto-billing-poll",
+      "name": "Billing poll",
+      "streamId": "lane-subscriber",
+      "sliceId": "slice-billing",
+      "observes": [
+        "view-entitlement"
+      ],
+      "notes": "Billing.Poller every 24h — poll_all, Monnify renewals"
+    },
+    {
+      "type": "automation",
+      "id": "auto-ops-migration",
+      "name": "Ops migration",
+      "streamId": "lane-product-admin",
       "sliceId": "slice-ops",
-      "actor": "Product admin",
-      "bindings": [],
+      "observes": [],
       "notes": "IEx: seed groups, imports, group settings rename"
     }
   ],
@@ -1451,7 +1897,7 @@
     },
     {
       "id": "em-issue-6",
-      "from": "scr-sys-device-cap",
+      "from": "auto-device-cap",
       "to": "cmd-revoke-device",
       "rel": "issues"
     },
@@ -1474,6 +1920,18 @@
       "rel": "issues"
     },
     {
+      "id": "em-issue-56",
+      "from": "trg-pay-with-paystack",
+      "to": "cmd-initiate-single-charge",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-57",
+      "from": "trg-success-page",
+      "to": "cmd-redirect-to-success-page",
+      "rel": "issues"
+    },
+    {
       "id": "em-issue-10",
       "from": "scr-mobile-billing",
       "to": "cmd-cancel-subscription",
@@ -1493,91 +1951,91 @@
     },
     {
       "id": "em-issue-13",
-      "from": "scr-sys-webhook-paystack",
+      "from": "auto-paystack-webhook",
       "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-14",
-      "from": "scr-sys-webhook-paystack",
+      "from": "auto-paystack-webhook",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-15",
-      "from": "scr-sys-webhook-paystack",
+      "from": "auto-paystack-webhook",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-16",
-      "from": "scr-sys-webhook-paystack",
+      "from": "auto-paystack-webhook",
       "to": "cmd-update-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-17",
-      "from": "scr-sys-webhook-paystack",
+      "from": "auto-paystack-webhook",
       "to": "cmd-cancel-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-18",
-      "from": "scr-sys-webhook-monnify",
+      "from": "auto-monnify-webhook",
       "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-19",
-      "from": "scr-sys-webhook-monnify",
+      "from": "auto-monnify-webhook",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-20",
-      "from": "scr-sys-webhook-monnify",
+      "from": "auto-monnify-webhook",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-21",
-      "from": "scr-sys-webhook-monnify",
+      "from": "auto-monnify-webhook",
       "to": "cmd-update-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-22",
-      "from": "scr-sys-webhook-monnify",
+      "from": "auto-monnify-webhook",
       "to": "cmd-cancel-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-23",
-      "from": "scr-sys-billing-reconcile",
+      "from": "auto-billing-reconcile",
       "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-24",
-      "from": "scr-sys-billing-reconcile",
+      "from": "auto-billing-reconcile",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-25",
-      "from": "scr-sys-billing-reconcile",
+      "from": "auto-billing-reconcile",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-26",
-      "from": "scr-sys-billing-poll",
+      "from": "auto-billing-poll",
       "to": "cmd-initiate-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-27",
-      "from": "scr-sys-billing-poll",
+      "from": "auto-billing-poll",
       "to": "cmd-update-subscription",
       "rel": "issues"
     },
@@ -1715,37 +2173,37 @@
     },
     {
       "id": "em-issue-50",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-import-device",
       "rel": "issues"
     },
     {
       "id": "em-issue-51",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-import-entitlement",
       "rel": "issues"
     },
     {
       "id": "em-issue-52",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-53",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-import-flag",
       "rel": "issues"
     },
     {
       "id": "em-issue-54",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-create-group",
       "rel": "issues"
     },
     {
       "id": "em-issue-55",
-      "from": "scr-int-ops",
+      "from": "auto-ops-migration",
       "to": "cmd-update-group-settings",
       "rel": "issues"
     },
@@ -1801,6 +2259,18 @@
       "id": "em-produce-cmd-initiate-payment",
       "from": "cmd-initiate-payment",
       "to": "evt-payment-initiated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-initiate-single-charge",
+      "from": "cmd-initiate-single-charge",
+      "to": "evt-single-charge-initiated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-redirect-to-success-page",
+      "from": "cmd-redirect-to-success-page",
+      "to": "evt-customer-redirected-to-success",
       "rel": "produces"
     },
     {
@@ -1916,6 +2386,342 @@
       "from": "cmd-resolve-flag",
       "to": "evt-flag-resolved",
       "rel": "produces"
+    },
+    {
+      "id": "em-update-view-devices-evt-device-imported",
+      "from": "evt-device-imported",
+      "to": "view-devices",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-devices-evt-device-registered",
+      "from": "evt-device-registered",
+      "to": "view-devices",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-devices-evt-device-revoked",
+      "from": "evt-device-revoked",
+      "to": "view-devices",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-devices-scr-settings-devices",
+      "from": "view-devices",
+      "to": "scr-settings-devices",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-devices-scr-mobile-settings",
+      "from": "view-devices",
+      "to": "scr-mobile-settings",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-entitlement-evt-entitlement-imported",
+      "from": "evt-entitlement-imported",
+      "to": "view-entitlement",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-entitlement-evt-trial-started",
+      "from": "evt-trial-started",
+      "to": "view-entitlement",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-entitlement-evt-subscription-activated",
+      "from": "evt-subscription-activated",
+      "to": "view-entitlement",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-entitlement-evt-subscription-updated",
+      "from": "evt-subscription-updated",
+      "to": "view-entitlement",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-entitlement-evt-subscription-cancelled",
+      "from": "evt-subscription-cancelled",
+      "to": "view-entitlement",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-entitlement-scr-subscription",
+      "from": "view-entitlement",
+      "to": "scr-subscription",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-entitlement-scr-mobile-billing",
+      "from": "view-entitlement",
+      "to": "scr-mobile-billing",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-payments-evt-payment-initiated",
+      "from": "evt-payment-initiated",
+      "to": "view-payments",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-payments-evt-payment-confirmed",
+      "from": "evt-payment-confirmed",
+      "to": "view-payments",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-payments-evt-payment-imported",
+      "from": "evt-payment-imported",
+      "to": "view-payments",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-payments-evt-manual-payment",
+      "from": "evt-manual-payment",
+      "to": "view-payments",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-payments-scr-subscription",
+      "from": "view-payments",
+      "to": "scr-subscription",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-payments-scr-pay-return",
+      "from": "view-payments",
+      "to": "scr-pay-return",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-payments-scr-mobile-billing",
+      "from": "view-payments",
+      "to": "scr-mobile-billing",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-paystack-checkout-evt-single-charge-initiated",
+      "from": "evt-single-charge-initiated",
+      "to": "view-paystack-checkout",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-paystack-checkout-scr-payment-page",
+      "from": "view-paystack-checkout",
+      "to": "scr-payment-page",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-redirect-scr-payment-page-trg-paystack-checkout",
+      "from": "scr-payment-page",
+      "to": "trg-paystack-checkout",
+      "rel": "redirectsTo"
+    },
+    {
+      "id": "em-redirect-trg-paystack-checkout-trg-success-page",
+      "from": "trg-paystack-checkout",
+      "to": "trg-success-page",
+      "rel": "redirectsTo"
+    },
+    {
+      "id": "em-update-view-attempts-evt-exam-submitted",
+      "from": "evt-exam-submitted",
+      "to": "view-attempts",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-attempts-scr-me-hub",
+      "from": "view-attempts",
+      "to": "scr-me-hub",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-attempts-scr-joint-exam",
+      "from": "view-attempts",
+      "to": "scr-joint-exam",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-attempts-scr-mobile-practice",
+      "from": "view-attempts",
+      "to": "scr-mobile-practice",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-interview-session-evt-interview-started",
+      "from": "evt-interview-started",
+      "to": "view-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-interview-session-evt-interview-scored",
+      "from": "evt-interview-scored",
+      "to": "view-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-interview-session-evt-interview-advanced",
+      "from": "evt-interview-advanced",
+      "to": "view-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-interview-session-evt-interview-finished",
+      "from": "evt-interview-finished",
+      "to": "view-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-interview-session-evt-interview-abandoned",
+      "from": "evt-interview-abandoned",
+      "to": "view-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-interview-session-scr-interview",
+      "from": "view-interview-session",
+      "to": "scr-interview",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-interview-review-evt-interview-scored",
+      "from": "evt-interview-scored",
+      "to": "view-interview-review",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-interview-review-scr-interview",
+      "from": "view-interview-review",
+      "to": "scr-interview",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-groups-evt-group-created",
+      "from": "evt-group-created",
+      "to": "view-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-groups-evt-group-settings-updated",
+      "from": "evt-group-settings-updated",
+      "to": "view-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-groups-evt-join-code-set",
+      "from": "evt-join-code-set",
+      "to": "view-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-groups-scr-study-group",
+      "from": "view-groups",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-groups-scr-mobile-study-groups",
+      "from": "view-groups",
+      "to": "scr-mobile-study-groups",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-memberships-evt-member-joined",
+      "from": "evt-member-joined",
+      "to": "view-memberships",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-memberships-evt-member-left",
+      "from": "evt-member-left",
+      "to": "view-memberships",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-memberships-scr-study-group",
+      "from": "view-memberships",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-memberships-scr-join-group",
+      "from": "view-memberships",
+      "to": "scr-join-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-memberships-scr-mobile-join-group",
+      "from": "view-memberships",
+      "to": "scr-mobile-join-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-joint-sessions-evt-joint-opened",
+      "from": "evt-joint-opened",
+      "to": "view-joint-sessions",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-joint-sessions-evt-joint-closed",
+      "from": "evt-joint-closed",
+      "to": "view-joint-sessions",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-joint-sessions-scr-study-group",
+      "from": "view-joint-sessions",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-joint-sessions-scr-joint-exam",
+      "from": "view-joint-sessions",
+      "to": "scr-joint-exam",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-joint-sessions-scr-mobile-study-groups",
+      "from": "view-joint-sessions",
+      "to": "scr-mobile-study-groups",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-view-flags-evt-flag-imported",
+      "from": "evt-flag-imported",
+      "to": "view-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-flags-evt-flag-raised",
+      "from": "evt-flag-raised",
+      "to": "view-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-view-flags-evt-flag-resolved",
+      "from": "evt-flag-resolved",
+      "to": "view-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-view-flags-scr-me-hub",
+      "from": "view-flags",
+      "to": "scr-me-hub",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-flags-scr-mobile-practice",
+      "from": "view-flags",
+      "to": "scr-mobile-practice",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-view-flags-scr-settings-admin",
+      "from": "view-flags",
+      "to": "scr-settings-admin",
+      "rel": "rendersOn"
     }
   ]
 }
