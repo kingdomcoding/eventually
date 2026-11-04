@@ -16,6 +16,10 @@ const REL_LABEL: Record<string, string> = {
   redirectsTo: "redirect",
 };
 
+/** Base overhead clearance; each redirect steps up so arcs do not share one rail. */
+const REDIRECT_OFFSET_BASE = 40;
+const REDIRECT_OFFSET_STEP = 36;
+
 function handlesFor(rel: string): { sourceHandle: string; targetHandle: string } {
   if (rel === "loopsBack") return { sourceHandle: "t-out", targetHandle: "b-in" };
   // Overhead loop: leave the top of the source page and enter the top of the target.
@@ -24,6 +28,27 @@ function handlesFor(rel: string): { sourceHandle: string; targetHandle: string }
   if (rel === "updates") return { sourceHandle: "t-out", targetHandle: "b-in" };
   if (rel === "rendersOn") return { sourceHandle: "t-out", targetHandle: "b-in" };
   return { sourceHandle: "b-out", targetHandle: "t-in" };
+}
+
+/** Stable vertical stagger: shorter spans sit lower; longer spans climb higher. */
+function redirectOffsetFor(
+  edge: { id: string; from: string; to: string },
+  redirects: { id: string; from: string; to: string }[],
+  positions: Map<string, NodePosition>,
+): number {
+  const ranked = [...redirects].sort((a, b) => {
+    const aFrom = positions.get(a.from)?.x ?? 0;
+    const aTo = positions.get(a.to)?.x ?? 0;
+    const bFrom = positions.get(b.from)?.x ?? 0;
+    const bTo = positions.get(b.to)?.x ?? 0;
+    const aSpan = Math.abs(aTo - aFrom);
+    const bSpan = Math.abs(bTo - bFrom);
+    if (aSpan !== bSpan) return aSpan - bSpan;
+    if (aFrom !== bFrom) return aFrom - bFrom;
+    return a.id.localeCompare(b.id);
+  });
+  const index = ranked.findIndex((r) => r.id === edge.id);
+  return REDIRECT_OFFSET_BASE + Math.max(0, index) * REDIRECT_OFFSET_STEP;
 }
 
 function isLongRangeUpdate(
@@ -56,6 +81,7 @@ export function buildEdges(
 ): Edge[] {
   const includeStream = options.includeStreamEdges !== false;
   const includeEm = options.includeEmEdges !== false;
+  const redirectEdges = doc.edges.filter((e) => e.rel === "redirectsTo");
   return doc.edges
     .filter((e) => {
       if (e.rel === "ordersBefore" || e.rel === "loopsBack") {
@@ -85,7 +111,7 @@ export function buildEdges(
       ...(isRedirect
         ? {
             pathOptions: {
-              offset: 56,
+              offset: redirectOffsetFor(e, redirectEdges, positions),
               borderRadius: 18,
             },
           }

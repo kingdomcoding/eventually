@@ -4,6 +4,7 @@ import {
   Controls,
   MiniMap,
   PanOnScrollMode,
+  Position,
   ReactFlow,
   type Node,
   type Viewport,
@@ -14,6 +15,7 @@ import { BlueprintDocumentSchema } from "@schema/document.js";
 import { indexForCanvas } from "@schema/canvas-index.js";
 import { buildEdges } from "./edges";
 import { computeLayout, type DiagramMode } from "./layout";
+import { NODE_H, NODE_W } from "./layoutMetrics";
 import { packLayout, type NodeSize } from "./packLayout";
 import { LAYOUT_MORPH_MS, useLayoutMorph } from "./useLayoutMorph";
 import { StickyNode, type StickyData } from "./StickyNode";
@@ -44,10 +46,28 @@ import { BAND_LABEL_DESIGN_UI } from "./streamLabels";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
+const HANDLE_SIZE = 7;
+
 const getFlowPaneSizeFromCanvas = (root: HTMLDivElement | null) => {
   const host = root?.querySelector(".react-flow__renderer") as HTMLElement | null;
   return { width: host?.clientWidth ?? 800, height: host?.clientHeight ?? 600 };
 };
+
+/** Explicit handle bounds so edges keep endpoints when node object identity churns. */
+function stickyHandles(width: number, height: number) {
+  const hw = HANDLE_SIZE;
+  const hh = HANDLE_SIZE;
+  const cx = width / 2 - hw / 2;
+  const cy = height / 2 - hh / 2;
+  return [
+    { id: "t-in", type: "target" as const, position: Position.Top, x: cx, y: -hh / 2, width: hw, height: hh },
+    { id: "t-out", type: "source" as const, position: Position.Top, x: cx, y: -hh / 2, width: hw, height: hh },
+    { id: "b-in", type: "target" as const, position: Position.Bottom, x: cx, y: height - hh / 2, width: hw, height: hh },
+    { id: "b-out", type: "source" as const, position: Position.Bottom, x: cx, y: height - hh / 2, width: hw, height: hh },
+    { id: "l-in", type: "target" as const, position: Position.Left, x: -hw / 2, y: cy, width: hw, height: hh },
+    { id: "r-out", type: "source" as const, position: Position.Right, x: width - hw / 2, y: cy, width: hw, height: hh },
+  ];
+}
 
 function prefersReducedMotion(): boolean {
   return (
@@ -584,10 +604,19 @@ export function BlueprintCanvas() {
           workflowPath.status === "valid" && workflowPath.eventIds.has(n.id) && n.type === "event";
         const selected =
           diagramMode === "stream" && n.type === "event" && openEventIds.has(n.id);
+        // Seed size + handles so React Flow can place edges without DOM measurement.
+        // Node object identity churns on focus/hover; without measured/handles, adoptUserNodes
+        // clears handleBounds and every edge endpoint becomes null → empty edge layer.
+        const size = nodeSizes.get(n.id);
+        const width = size?.width ?? NODE_W;
+        const height = size?.height ?? NODE_H;
         return {
           id: n.id,
           type: "sticky",
           position: p,
+          // measured + handles only — avoid width/height so expanded stickies are not clipped.
+          measured: { width, height },
+          handles: stickyHandles(width, height),
           zIndex: isFocusAnchor ? 5 : onWorkflowRoute ? 4 : 2,
           className: "nopan",
           data: {
@@ -645,6 +674,7 @@ export function BlueprintCanvas() {
       diagramMode,
       openEventIds,
       onMeasuredSize,
+      nodeSizes,
     ],
   );
 

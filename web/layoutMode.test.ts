@@ -129,12 +129,24 @@ test("apex timeline places external Paystack checkout with the payment page colu
     "Paystack Payment Success Page",
   );
   assert.equal(
+    apex.nodes.find((n) => n.id === "trg-cancel-page")?.name,
+    "Paystack Payment Cancel Page",
+  );
+  assert.equal(
     apex.nodes.find((n) => n.id === "evt-customer-redirected-to-success")?.name,
     "Customer Redirected To Success Page",
   );
   assert.equal(
+    apex.nodes.find((n) => n.id === "evt-customer-redirected-to-cancel")?.name,
+    "Customer Redirected To Cancel Page",
+  );
+  assert.equal(
     apex.nodes.find((n) => n.id === "cmd-redirect-to-success-page")?.name,
     "Mark Customer Visit to Success Page",
+  );
+  assert.equal(
+    apex.nodes.find((n) => n.id === "cmd-redirect-to-cancel-page")?.name,
+    "Mark Customer Visit to Cancel Page",
   );
   const payTrigger = apex.nodes.find((n) => n.id === "trg-pay-with-paystack");
   assert.ok(payTrigger?.type === "trigger");
@@ -153,15 +165,27 @@ test("apex timeline places external Paystack checkout with the payment page colu
       e.to === "trg-success-page",
   );
   assert.ok(successRedirect, "Paystack Checkout Page should redirect to Paystack Payment Success Page");
-  for (const edge of [redirect, successRedirect]) {
-    const flowRedirect = buildEdges(apex, layout.positions).find((e) => e.id === edge!.id);
+  const cancelRedirect = apex.edges.find(
+    (e) =>
+      e.rel === "redirectsTo" &&
+      e.from === "trg-paystack-checkout" &&
+      e.to === "trg-cancel-page",
+  );
+  assert.ok(cancelRedirect, "Paystack Checkout Page should redirect to Paystack Payment Cancel Page");
+  const flowEdges = buildEdges(apex, layout.positions);
+  const flowRedirects = [redirect, successRedirect, cancelRedirect].map((edge) => {
+    const flowRedirect = flowEdges.find((e) => e.id === edge!.id);
     assert.ok(flowRedirect);
     assert.equal(flowRedirect.type, "smoothstep");
     assert.equal(flowRedirect.sourceHandle, "t-out");
     assert.equal(flowRedirect.targetHandle, "t-in");
     assert.equal(flowRedirect.label, "redirect");
     assert.match(String(flowRedirect.style?.strokeDasharray ?? ""), /5/);
-  }
+    return flowRedirect;
+  });
+  const offsets = flowRedirects.map((e) => (e.pathOptions as { offset?: number } | undefined)?.offset);
+  assert.equal(new Set(offsets).size, offsets.length, "redirect apex offsets must be staggered");
+  assert.deepEqual(offsets, [40, 76, 112]);
 });
 
 test("formatParentsLabel uses singular Parent and comma-separates many", () => {
