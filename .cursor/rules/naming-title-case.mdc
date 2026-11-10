@@ -1,14 +1,15 @@
 ---
-description: Title-case naming for views, screens, triggers, streams, and labels
+description: Title-case naming for data tables, screens, triggers, streams, and labels
 alwaysApply: true
 ---
 
 # Naming: Title Case
 
-Project convention for user-facing names (views, screens, triggers, streams, actors, labels):
+Project convention for user-facing names (data tables, screens, triggers, streams, actors, labels):
 
 - Use **title case**: spaced words, each major word capitalized.
-- Examples: `Initiated Transactions`, `Paystack Checkout Page`, `Authenticated Learner`, `Purchase License Page`, `Paystack Success Splash Page`.
-- Do **not** use lowercase labels (`initiated transactions`) or unspaced PascalCase for display names (`InitiateSingleCharge` is fine for command *ids/code* names that already follow that pattern; UI labels still prefer spaced title case when naming screens/triggers/views).
+- Examples: `Initiated Transactions`, `Initiated License Purchases`, `Paystack Checkout Page`, `Authenticated Learner`, `License Purchase Process Manager`, `License Purchase Page`, `Trigger Paystack Payment`, `Transaction Status Page`, `Success Auto-Redirect URL`, `Failure Auto-Redirect URL`, `Initiate License Purchase`, `License Purchase Initiated`, `License Issued`, `Record Customer Redirect From Checkout Page To Success URL`, `Record Customer Redirect From Checkout Page To Cancel URL` (commands); `Customer Redirected From Checkout Page To Success URL`, `Customer Redirected From Checkout Page To Cancel URL` (events). `Licensing` (context/stream).
+- Do **not** use lowercase labels (`initiated transactions`) or unspaced PascalCase for display names (`InitiateSingleCharge` is fine for command *ids/code* names that already follow that pattern; UI labels still prefer spaced title case when naming screens/triggers/data tables).
+- Sticky meta prefixes: show host page as `Location:` / `Locations:` (not `Parent:`; underlying field remains `parents`). Data-table consumer context uses `For:`; command/event stream lanes use `Context:`. Actor lanes stay `Who:`.
 
 Apply this when adding or renaming nodes in `samples/apex-bee.json` and when generating names in `scripts/enrich-apex-bee-timeline.mjs`.

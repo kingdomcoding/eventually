@@ -54,11 +54,11 @@ test("stream selection does not expand commands or related events", () => {
   assert.equal(nodeDisplayTier(apex, "evt-trial-started", state, "idle"), "context");
   assert.equal(nodeDisplayTier(apex, "cmd-register-device", state, "idle"), "hidden");
   assert.equal(nodeDisplayTier(apex, "cmd-submit-exam", state, "idle"), "hidden");
-  assert.equal(nodeDisplayTier(apex, "view-devices", state, "idle"), "hidden");
+  assert.equal(nodeDisplayTier(apex, "data-table-devices", state, "idle"), "hidden");
 
   const hovered = { ...state, hoverExpandedId: "evt-device-registered" };
   assert.equal(nodeDisplayTier(apex, "cmd-register-device", hovered, "active"), "hidden");
-  assert.equal(nodeDisplayTier(apex, "view-devices", hovered, "active"), "hidden");
+  assert.equal(nodeDisplayTier(apex, "data-table-devices", hovered, "active"), "hidden");
 });
 
 test("timeline range dims events outside the slice", () => {

@@ -25,8 +25,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-availability",
+      "type": "dataTable",
+      "id": "data-table-availability",
       "name": "RoomAvailability",
       "streamId": "lane-booking-cv",
       "sliceId": "slice-book",
@@ -46,7 +46,7 @@
       "bindings": [
         {
           "uiField": "calendar",
-          "target": { "kind": "viewField", "viewId": "view-availability", "field": "availableDates" }
+          "target": { "kind": "dataTableField", "dataTableId": "data-table-availability", "field": "availableDates" }
         }
       ]
     },
@@ -98,9 +98,9 @@
   "edges": [
     { "id": "e1", "from": "scr-book-form", "to": "cmd-book-room", "rel": "issues" },
     { "id": "e2", "from": "cmd-book-room", "to": "evt-room-booked", "rel": "produces" },
-    { "id": "e3a", "from": "evt-hotel-setup", "to": "view-availability", "rel": "updates" },
-    { "id": "e3", "from": "evt-room-booked", "to": "view-availability", "rel": "updates" },
-    { "id": "e4", "from": "view-availability", "to": "scr-calendar", "rel": "rendersOn" },
+    { "id": "e3a", "from": "evt-hotel-setup", "to": "data-table-availability", "rel": "updates" },
+    { "id": "e3", "from": "evt-room-booked", "to": "data-table-availability", "rel": "updates" },
+    { "id": "e4", "from": "data-table-availability", "to": "scr-calendar", "rel": "rendersOn" },
     { "id": "e5", "from": "evt-hotel-setup", "to": "evt-room-booked", "rel": "ordersBefore" }
   ]
 }

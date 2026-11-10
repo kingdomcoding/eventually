@@ -14,7 +14,7 @@ Each **streams** stream can carry optional `streamShape` metadata beside `stream
 ## Edges
 
 - `ordersBefore` — required precedence on the same stream (then).
-- `loopsBack` — optional cycle on a stream when the domain allows repeating a step.
+- `loopsBack` — optional cycle on a stream when the context allows repeating a step.
 
 Workflow routing uses then + loop-back + pool clique reachability on **one stream only**.
 

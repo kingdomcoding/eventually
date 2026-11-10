@@ -15,11 +15,12 @@ const doc = JSON.parse(readFileSync(path, "utf8"));
 const EXTRA_STREAMS = [
   { id: "lane-visitor", name: "Visitor", band: "ui", order: 0 },
   { id: "lane-authenticated-learner", name: "Authenticated Learner", band: "ui", order: 1 },
-  { id: "lane-subscriber", name: "Subscriber", band: "ui", order: 2 },
-  { id: "lane-group-member", name: "Group member", band: "ui", order: 3 },
-  { id: "lane-group-host", name: "Group host", band: "ui", order: 4 },
-  { id: "lane-marketing-lead", name: "Marketing lead", band: "ui", order: 5 },
-  { id: "lane-product-admin", name: "Product admin", band: "ui", order: 6 },
+  { id: "lane-license-purchase-process-manager", name: "License Purchase Process Manager", band: "ui", order: 2 },
+  { id: "lane-subscriber", name: "Subscriber", band: "ui", order: 3 },
+  { id: "lane-group-member", name: "Group member", band: "ui", order: 4 },
+  { id: "lane-group-host", name: "Group host", band: "ui", order: 5 },
+  { id: "lane-marketing-lead", name: "Marketing lead", band: "ui", order: 6 },
+  { id: "lane-product-admin", name: "Product admin", band: "ui", order: 7 },
   { id: "lane-writes", name: "Commands", band: "commandView", order: 0 },
 ];
 
@@ -30,6 +31,11 @@ const COMMAND_FOR_EVENT = {
   "evt-device-revoked": { cmdId: "cmd-revoke-device", cmdName: "Revoke Device", slice: "slice-auth" },
   "evt-entitlement-imported": { cmdId: "cmd-import-entitlement", cmdName: "Import Entitlement", slice: "slice-ops" },
   "evt-trial-started": { cmdId: "cmd-start-trial", cmdName: "Start Trial", slice: "slice-auth" },
+  "evt-license-purchase-initiated": {
+    cmdId: "cmd-initiate-license-purchase",
+    cmdName: "Initiate License Purchase",
+    slice: "slice-billing",
+  },
   "evt-subscription-activated": {
     cmdId: "cmd-activate-subscription",
     cmdName: "Activate Subscription",
@@ -52,13 +58,13 @@ const COMMAND_FOR_EVENT = {
     slice: "slice-billing",
   },
   "evt-customer-redirected-to-success": {
-    cmdId: "cmd-redirect-to-success-page",
-    cmdName: "Mark Customer Visit to Success Page",
+    cmdId: "cmd-record-customer-redirect-success",
+    cmdName: "Record Customer Redirect From Checkout Page To Success URL",
     slice: "slice-billing",
   },
   "evt-customer-redirected-to-cancel": {
-    cmdId: "cmd-redirect-to-cancel-page",
-    cmdName: "Mark Customer Visit to Cancel Page",
+    cmdId: "cmd-record-customer-redirect-failure",
+    cmdName: "Record Customer Redirect From Checkout Page To Cancel URL",
     slice: "slice-billing",
   },
   "evt-payment-confirmed": { cmdId: "cmd-confirm-payment", cmdName: "Confirm Payment", slice: "slice-billing" },
@@ -153,30 +159,39 @@ const SCREENS = [
   },
   {
     id: "scr-payment-page",
-    name: "Purchase License Page",
+    name: "License Purchase Page",
     lane: "lane-authenticated-learner",
     actor: "Authenticated Learner",
     slice: "slice-paystack-checkout",
     notes:
-      "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the Subscribe with Paystack Button path.",
+      "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the License Checkout Modal path.",
     bindings: [
       {
         uiField: "transaction_id",
         target: {
-          kind: "viewField",
-          viewId: "view-paystack-checkout",
+          kind: "dataTableField",
+          dataTableId: "data-table-paystack-checkout",
           field: "transaction_id",
         },
       },
       {
         uiField: "authorization_url",
         target: {
-          kind: "viewField",
-          viewId: "view-paystack-checkout",
+          kind: "dataTableField",
+          dataTableId: "data-table-paystack-checkout",
           field: "authorization_url",
         },
       },
     ],
+  },
+  {
+    id: "scr-transaction-status",
+    name: "Transaction Status Page",
+    lane: "lane-authenticated-learner",
+    actor: "Authenticated Learner",
+    slice: "slice-paystack-checkout",
+    notes:
+      "In-app landing page after Paystack auto-redirect URLs. Stands alone — does not issue a command.",
   },
   {
     id: "scr-pay-return",
@@ -283,15 +298,24 @@ const AUTOMATIONS = [
     name: "Device cap",
     lane: "lane-visitor",
     slice: "slice-auth",
-    observes: ["view-devices"],
+    observes: ["data-table-devices"],
     notes: "Accounts.register_device revokes the oldest device past the cap",
+  },
+  {
+    id: "auto-subscription-charge",
+    name: "Trigger Paystack Payment",
+    lane: "lane-license-purchase-process-manager",
+    slice: "slice-billing",
+    observes: ["data-table-initiated-license-purchases"],
+    notes:
+      "Watches Initiated License Purchases and issues Initiate Single Charge to start Paystack checkout",
   },
   {
     id: "auto-paystack-webhook",
     name: "Paystack webhook",
     lane: "lane-subscriber",
     slice: "slice-billing",
-    observes: ["view-payments"],
+    observes: ["data-table-payments"],
     notes: "POST /webhooks/paystack — translation into billing commands",
   },
   {
@@ -299,7 +323,7 @@ const AUTOMATIONS = [
     name: "Monnify webhook",
     lane: "lane-subscriber",
     slice: "slice-billing",
-    observes: ["view-payments"],
+    observes: ["data-table-payments"],
     notes: "POST /webhooks/monnify",
   },
   {
@@ -307,7 +331,7 @@ const AUTOMATIONS = [
     name: "Billing reconcile",
     lane: "lane-subscriber",
     slice: "slice-billing",
-    observes: ["view-payments"],
+    observes: ["data-table-payments"],
     notes: "Billing.reconcile_reference on return URL",
   },
   {
@@ -315,7 +339,7 @@ const AUTOMATIONS = [
     name: "Billing poll",
     lane: "lane-subscriber",
     slice: "slice-billing",
-    observes: ["view-entitlement"],
+    observes: ["data-table-entitlement"],
     notes: "Billing.Poller every 24h — poll_all, Monnify renewals",
   },
   {
@@ -328,16 +352,16 @@ const AUTOMATIONS = [
   },
 ];
 
-const VIEWS = [
+const DATA_TABLES = [
   {
-    id: "view-devices",
+    id: "data-table-devices",
     name: "Devices",
     slice: "slice-auth",
     fedBy: ["evt-device-imported", "evt-device-registered", "evt-device-revoked"],
     rendersOn: ["scr-settings-devices", "scr-mobile-settings"],
   },
   {
-    id: "view-entitlement",
+    id: "data-table-entitlement",
     name: "Entitlement",
     slice: "slice-billing",
     fedBy: [
@@ -350,7 +374,14 @@ const VIEWS = [
     rendersOn: ["scr-subscription", "scr-mobile-billing"],
   },
   {
-    id: "view-payments",
+    id: "data-table-initiated-license-purchases",
+    name: "Initiated License Purchases",
+    slice: "slice-billing",
+    fedBy: ["evt-license-purchase-initiated"],
+    rendersOn: [],
+  },
+  {
+    id: "data-table-payments",
     name: "Payments",
     slice: "slice-billing",
     fedBy: [
@@ -362,7 +393,46 @@ const VIEWS = [
     rendersOn: ["scr-subscription", "scr-pay-return", "scr-mobile-billing"],
   },
   {
-    id: "view-paystack-checkout",
+    id: "data-table-open-cohort-windows",
+    name: "Open Cohort Windows",
+    slice: "slice-available-license-cards",
+    fedBy: ["evt-cohort-window-opened"],
+    rendersOn: ["trg-available-license-cards", "trg-license-checkout-modal"],
+    fields: [
+      {
+        name: "cohort_window_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "cohort_window_id",
+        },
+      },
+      {
+        name: "name",
+        type: "string",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "name",
+        },
+      },
+      {
+        name: "price",
+        type: "integer",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "price",
+        },
+      },
+    ],
+  },
+  {
+    id: "data-table-paystack-checkout",
     name: "Initiated Transactions",
     slice: "slice-paystack-checkout",
     fedBy: ["evt-single-charge-initiated"],
@@ -370,7 +440,7 @@ const VIEWS = [
     fields: [
       {
         name: "transaction_id",
-        type: "string",
+        type: "uuid",
         optional: false,
         source: {
           kind: "fromEvent",
@@ -391,14 +461,14 @@ const VIEWS = [
     ],
   },
   {
-    id: "view-attempts",
+    id: "data-table-attempts",
     name: "Attempts",
     slice: "slice-exam",
     fedBy: ["evt-exam-submitted"],
     rendersOn: ["scr-me-hub", "scr-joint-exam", "scr-mobile-practice"],
   },
   {
-    id: "view-interview-session",
+    id: "data-table-interview-session",
     name: "Interview Session",
     slice: "slice-interview",
     fedBy: [
@@ -411,35 +481,35 @@ const VIEWS = [
     rendersOn: ["scr-interview"],
   },
   {
-    id: "view-interview-review",
+    id: "data-table-interview-review",
     name: "Interview Review",
     slice: "slice-interview",
     fedBy: ["evt-interview-scored"],
     rendersOn: ["scr-interview"],
   },
   {
-    id: "view-groups",
+    id: "data-table-groups",
     name: "Study Groups",
     slice: "slice-groups",
     fedBy: ["evt-group-created", "evt-group-settings-updated", "evt-join-code-set"],
     rendersOn: ["scr-study-group", "scr-mobile-study-groups"],
   },
   {
-    id: "view-memberships",
+    id: "data-table-memberships",
     name: "Memberships",
     slice: "slice-groups",
     fedBy: ["evt-member-joined", "evt-member-left"],
     rendersOn: ["scr-study-group", "scr-join-group", "scr-mobile-join-group"],
   },
   {
-    id: "view-joint-sessions",
+    id: "data-table-joint-sessions",
     name: "Joint Sessions",
     slice: "slice-groups",
     fedBy: ["evt-joint-opened", "evt-joint-closed"],
     rendersOn: ["scr-study-group", "scr-joint-exam", "scr-mobile-study-groups"],
   },
   {
-    id: "view-flags",
+    id: "data-table-flags",
     name: "Question Flags",
     slice: "slice-trust",
     fedBy: ["evt-flag-imported", "evt-flag-raised", "evt-flag-resolved"],
@@ -458,9 +528,10 @@ const ISSUES = [
   ["auto-device-cap", "cmd-revoke-device"],
   ["scr-subscription", "cmd-initiate-payment"],
   ["scr-subscription", "cmd-cancel-subscription"],
-  ["trg-pay-with-paystack", "cmd-initiate-single-charge"],
-  ["trg-success-page", "cmd-redirect-to-success-page"],
-  ["trg-cancel-page", "cmd-redirect-to-cancel-page"],
+  ["trg-license-checkout-modal", "cmd-initiate-license-purchase"],
+  ["auto-subscription-charge", "cmd-initiate-single-charge"],
+  ["trg-auto-redirect-success", "cmd-record-customer-redirect-success"],
+  ["trg-auto-redirect-failure", "cmd-record-customer-redirect-failure"],
   ["scr-mobile-billing", "cmd-initiate-payment"],
   ["scr-mobile-billing", "cmd-cancel-subscription"],
   ["scr-mobile-billing", "cmd-activate-subscription"],
@@ -512,7 +583,7 @@ const ISSUES = [
 
 const SINGLE_CHARGE_TRANSACTION_ID_FIELD = {
   name: "transaction_id",
-  type: "string",
+  type: "uuid",
   description: "Transaction ID for this charge. Source TBD.",
 };
 
@@ -531,12 +602,12 @@ const INITIATE_SINGLE_CHARGE_FIELDS = [
     name: "email",
     type: "string",
     description:
-      "User email from the Subscribe with Paystack Button. Paystack initialize requires the customer's email.",
+      "User email for Paystack initialize (customer email required by Paystack).",
   },
   {
     name: "amount",
     type: "number",
-    description: "Amount to be paid in kobo, from the Subscribe with Paystack Button.",
+    description: "Amount to be paid in kobo for Paystack initialize.",
   },
 ];
 
@@ -609,62 +680,130 @@ const INITIATE_SINGLE_CHARGE_API = [
   },
 ];
 
-const commands = Object.entries(COMMAND_FOR_EVENT).map(([evtId, meta]) => ({
-  type: "command",
-  id: meta.cmdId,
-  name: meta.cmdName,
-  streamId: "lane-writes",
-  sliceId: meta.slice,
-  input:
-    meta.cmdId === "cmd-initiate-single-charge"
-      ? [
-          { name: "email", type: "string", optional: false, source: { kind: "user" } },
-          { name: "amount", type: "number", optional: false, source: { kind: "user" } },
-        ]
-      : [],
-  produces: [evtId],
-  rejections: [],
-  ...(evtId === "evt-member-left"
-    ? { notes: "Command exists; no product UI wired yet (LeaveGroup)" }
-    : {}),
-  ...(meta.cmdId === "cmd-initiate-single-charge"
-    ? {
-        fields: INITIATE_SINGLE_CHARGE_FIELDS,
-        apiClientResponse: INITIATE_SINGLE_CHARGE_API,
-      }
-    : {}),
-  ...(meta.cmdId === "cmd-redirect-to-success-page"
-    ? {
-        notes: "Records that the customer visited the Paystack payment success page.",
-      }
-    : {}),
-  ...(meta.cmdId === "cmd-redirect-to-cancel-page"
-    ? {
-        notes: "Records that the customer visited the Paystack payment cancel page.",
-      }
-    : {}),
-}));
+/** One command node per cmdId; multiple events may share a command (merged produces). */
+const commandsById = new Map();
+for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
+  const existing = commandsById.get(meta.cmdId);
+  if (existing) {
+    if (!existing.produces.includes(evtId)) existing.produces.push(evtId);
+    continue;
+  }
+  commandsById.set(meta.cmdId, {
+    type: "command",
+    id: meta.cmdId,
+    name: meta.cmdName,
+    streamId: "lane-writes",
+    sliceId: meta.slice,
+    input:
+      meta.cmdId === "cmd-initiate-single-charge"
+        ? [
+            { name: "email", type: "string", optional: false, source: { kind: "user" } },
+            { name: "amount", type: "number", optional: false, source: { kind: "user" } },
+          ]
+        : meta.cmdId === "cmd-initiate-license-purchase"
+          ? [
+              { name: "user_id", type: "uuid", optional: false, source: { kind: "user" } },
+              {
+                name: "cohort_window_id",
+                type: "uuid",
+                optional: false,
+                source: { kind: "user" },
+              },
+            ]
+          : [],
+    produces: [evtId],
+    rejections: [],
+    ...(evtId === "evt-member-left"
+      ? { notes: "Command exists; no product UI wired yet (LeaveGroup)" }
+      : {}),
+    ...(meta.cmdId === "cmd-initiate-single-charge"
+      ? {
+          fields: INITIATE_SINGLE_CHARGE_FIELDS,
+          apiClientResponse: INITIATE_SINGLE_CHARGE_API,
+        }
+      : {}),
+    ...(meta.cmdId === "cmd-initiate-license-purchase"
+      ? {
+          fields: [
+            {
+              name: "user_id",
+              type: "uuid",
+              description: "User ID of the learner initiating the license purchase.",
+            },
+            {
+              name: "cohort_window_id",
+              type: "uuid",
+              description: "Cohort window ID for the license being purchased.",
+            },
+          ],
+        }
+      : {}),
+    ...(meta.cmdId === "cmd-record-customer-redirect-success"
+      ? {
+          notes:
+            "Issued from the Success Auto-Redirect URL after Paystack checkout. Produces Customer Redirected From Checkout Page To Success URL.",
+        }
+      : {}),
+    ...(meta.cmdId === "cmd-record-customer-redirect-failure"
+      ? {
+          notes:
+            "Issued from the Failure Auto-Redirect URL after Paystack checkout. Produces Customer Redirected From Checkout Page To Cancel URL.",
+        }
+      : {}),
+  });
+}
+const commands = [...commandsById.values()];
 
 const triggers = [
   {
     type: "trigger",
-    id: "trg-pay-with-paystack",
-    name: "Subscribe with Paystack Button",
+    id: "trg-license-checkout-modal",
+    name: "License Checkout Modal",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-billing",
     actor: "Subscriber",
-    parents: ["Purchase License Page"],
+    parents: ["License Purchase Page"],
     fields: [
       {
-        name: "email",
-        type: "string",
-        description:
-          "The user's email for the person paying with this button. Paystack requires email.",
+        name: "cohort_window_id",
+        type: "uuid",
+        description: "ID of the cohort window being checked out.",
       },
       {
-        name: "amount",
-        type: "number",
-        description: "The amount to be paid, in kobo.",
+        name: "name",
+        type: "string",
+        description: "Display name of the cohort window.",
+      },
+      {
+        name: "price",
+        type: "integer",
+        description: "Price in cobalt for licenses in this cohort window.",
+      },
+    ],
+  },
+  {
+    type: "trigger",
+    id: "trg-available-license-cards",
+    name: "Available License Cards",
+    streamId: "lane-authenticated-learner",
+    sliceId: "slice-available-license-cards",
+    actor: "Subscriber",
+    parents: ["License Purchase Page"],
+    fields: [
+      {
+        name: "cohort_window_id",
+        type: "uuid",
+        description: "ID of the open cohort window shown on this card.",
+      },
+      {
+        name: "name",
+        type: "string",
+        description: "Display name of the open cohort window.",
+      },
+      {
+        name: "price",
+        type: "integer",
+        description: "Price in cobalt for licenses in this cohort window.",
       },
     ],
   },
@@ -677,27 +816,29 @@ const triggers = [
     actor: "Authenticated Learner",
     external: true,
     notes:
-      "EXTERNAL — Hosted Paystack checkout outside the product. Customer pays here before returning to success or cancel.",
+      "EXTERNAL — Hosted Paystack checkout outside the product. Customer pays here, then hits a success or failure auto-redirect URL.",
   },
   {
     type: "trigger",
-    id: "trg-success-page",
-    name: "Paystack Success Splash Page",
+    id: "trg-auto-redirect-success",
+    name: "Success Auto-Redirect URL",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-paystack-checkout",
     actor: "Authenticated Learner",
+    autoRedirect: true,
     notes:
-      "In-app success return after Paystack checkout; issues Mark Customer Visit to Success Page.",
+      "Paystack success return URL. Issues Record Customer Redirect From Checkout Page To Success URL, then redirects to the Transaction Status Page.",
   },
   {
     type: "trigger",
-    id: "trg-cancel-page",
-    name: "Paystack Cancel Splash Page",
+    id: "trg-auto-redirect-failure",
+    name: "Failure Auto-Redirect URL",
     streamId: "lane-authenticated-learner",
     sliceId: "slice-paystack-checkout",
     actor: "Authenticated Learner",
+    autoRedirect: true,
     notes:
-      "In-app cancel return after Paystack checkout; issues Mark Customer Visit to Cancel Page.",
+      "Paystack failure/cancel return URL. Issues Record Customer Redirect From Checkout Page To Cancel URL, then redirects to the Transaction Status Page.",
   },
 ];
 
@@ -711,8 +852,8 @@ const automations = AUTOMATIONS.map((a) => ({
   notes: a.notes,
 }));
 
-const views = VIEWS.map((v) => ({
-  type: "view",
+const dataTables = DATA_TABLES.map((v) => ({
+  type: "dataTable",
   id: v.id,
   name: v.name,
   streamId: "lane-writes",
@@ -742,13 +883,13 @@ for (const [from, to] of ISSUES) {
 }
 for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
   emEdges.push({
-    id: `em-produce-${meta.cmdId}`,
+    id: `em-produce-${meta.cmdId}-${evtId}`,
     from: meta.cmdId,
     to: evtId,
     rel: "produces",
   });
 }
-for (const v of VIEWS) {
+for (const v of DATA_TABLES) {
   for (const evtId of v.fedBy) {
     emEdges.push({
       id: `em-update-${v.id}-${evtId}`,
@@ -774,16 +915,34 @@ emEdges.push({
   rel: "redirectsTo",
 });
 emEdges.push({
-  id: "em-redirect-trg-paystack-checkout-trg-success-page",
+  id: "em-redirect-trg-paystack-checkout-trg-auto-redirect-success",
   from: "trg-paystack-checkout",
-  to: "trg-success-page",
+  to: "trg-auto-redirect-success",
   rel: "redirectsTo",
 });
 emEdges.push({
-  id: "em-redirect-trg-paystack-checkout-trg-cancel-page",
+  id: "em-redirect-trg-paystack-checkout-trg-auto-redirect-failure",
   from: "trg-paystack-checkout",
-  to: "trg-cancel-page",
+  to: "trg-auto-redirect-failure",
   rel: "redirectsTo",
+});
+emEdges.push({
+  id: "em-redirect-trg-auto-redirect-success-scr-transaction-status",
+  from: "trg-auto-redirect-success",
+  to: "scr-transaction-status",
+  rel: "redirectsTo",
+});
+emEdges.push({
+  id: "em-redirect-trg-auto-redirect-failure-scr-transaction-status",
+  from: "trg-auto-redirect-failure",
+  to: "scr-transaction-status",
+  rel: "redirectsTo",
+});
+emEdges.push({
+  id: "em-observe-data-table-initiated-license-purchases-auto-subscription-charge",
+  from: "data-table-initiated-license-purchases",
+  to: "auto-subscription-charge",
+  rel: "observes",
 });
 
 const streamEdges = doc.edges.filter((e) => e.rel === "ordersBefore" || e.rel === "loopsBack");
@@ -791,10 +950,10 @@ const streamEdges = doc.edges.filter((e) => e.rel === "ordersBefore" || e.rel ==
 doc.meta.modelVersion = 10;
 doc.meta.name = "Apex Bee — EventStore streams + timeline stack";
 doc.streams = [...EXTRA_STREAMS, ...doc.streams.filter((s) => s.band === "events")];
-doc.nodes = [...events, ...commands, ...views, ...screens, ...triggers, ...automations];
+doc.nodes = [...events, ...commands, ...dataTables, ...screens, ...triggers, ...automations];
 doc.edges = [...streamEdges, ...emEdges];
 
 writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
 console.log(
-  `Updated ${path}: ${commands.length} commands, ${views.length} views, ${screens.length} screens, ${automations.length} automations, ${emEdges.length} EM edges`,
+  `Updated ${path}: ${commands.length} commands, ${dataTables.length} data tables, ${screens.length} screens, ${automations.length} automations, ${emEdges.length} EM edges`,
 );

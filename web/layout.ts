@@ -125,9 +125,9 @@ function screenTimelineIndex(
   }
   const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
   if (render) {
-    const view = doc.nodes.find((x) => x.id === render.from && x.type === "view");
-    if (view?.type === "view") {
-      const anchor = anchorEventForView(doc, view, events);
+    const view = doc.nodes.find((x) => x.id === render.from && x.type === "dataTable");
+    if (view?.type === "dataTable") {
+      const anchor = anchorEventForDataTable(doc, view, events);
       return anchor?.timelineIndex ?? 0;
     }
   }
@@ -188,9 +188,9 @@ function producingCommand(doc: BlueprintDocument, eventId: string) {
   return doc.nodes.find((n) => n.type === "command" && n.produces.includes(eventId));
 }
 
-function anchorEventForView(
+function anchorEventForDataTable(
   doc: BlueprintDocument,
-  view: BlueprintNode & { type: "view" },
+  view: BlueprintNode & { type: "dataTable" },
   events: Array<BlueprintNode & { type: "event" }>,
 ): (BlueprintNode & { type: "event" }) | undefined {
   const candidates = view.fedBy
@@ -230,12 +230,12 @@ function computeStreamLayout(doc: BlueprintDocument): LayoutResult {
     .sort((a, b) => a.timelineIndex - b.timelineIndex);
 
   const views = doc.nodes.filter(
-    (n): n is BlueprintNode & { type: "view" } => n.type === "view",
+    (n): n is BlueprintNode & { type: "dataTable" } => n.type === "dataTable",
   );
 
   const viewsByAnchor = new Map<string, BlueprintNode[]>();
   for (const view of views) {
-    const anchor = anchorEventForView(doc, view, events);
+    const anchor = anchorEventForDataTable(doc, view, events);
     const key = anchor?.id ?? "orphan";
     if (!viewsByAnchor.has(key)) viewsByAnchor.set(key, []);
     viewsByAnchor.get(key)!.push(view);

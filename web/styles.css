@@ -592,7 +592,7 @@ body,
   stroke: #9fd0ff;
 }
 
-.sticky-wrap--focus-anchor.view .sticky-focus-ring__rect {
+.sticky-wrap--focus-anchor.dataTable .sticky-focus-ring__rect {
   stroke: #b8f0b8;
 }
 
@@ -617,7 +617,7 @@ body,
   z-index: 1;
   min-width: 148px;
   max-width: 210px;
-  padding: 0.6rem 0.7rem;
+  padding: 0.72rem 0.8rem;
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.22);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
@@ -625,12 +625,23 @@ body,
   line-height: 1.3;
 }
 
+/* Kind (+ Context / Location meta) as one band; gap after the band, not between every meta line. */
+.sticky-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.42rem;
+}
+
 .sticky .kind {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
   font-size: 0.62rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.85;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0;
 }
 
 .sticky .name {
@@ -648,13 +659,22 @@ body,
   text-overflow: ellipsis;
 }
 
-.sticky-stream {
-  margin-bottom: 0.25rem;
+.sticky-lane {
+  margin-top: 0.4rem;
   font-size: 0.62rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  opacity: 0.85;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  opacity: 0.82;
+}
+
+/* Who on automations sits in the header band; drop the below-name top margin only. */
+.sticky-header .sticky-lane {
+  margin-top: 0;
+}
+
+.sticky-lane--before-divider {
+  margin-bottom: 0;
 }
 
 .sticky-sections {
@@ -883,7 +903,7 @@ body,
   color: #041018;
 }
 
-.sticky.view {
+.sticky.dataTable {
   background: linear-gradient(165deg, #6fd06f, #4aab4a);
   color: #041004;
 }
@@ -901,28 +921,57 @@ body,
   border-color: #6b829c;
 }
 
-/* Hosted outside the product — External badge only (no special border). */
-.sticky-external-badge {
-  display: inline-block;
-  margin-top: 0.28rem;
-  padding: 0.12rem 0.4rem;
-  border: 1px solid #c48a22;
-  border-radius: 3px;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #5c3d0a;
-  background: #f6d891;
+/* Location label for parent page(s); quieter than Who: (italic + lower opacity).
+   Also used for faint Who on triggers/screens (flipped vs data tables). */
+.sticky-parents {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  line-height: 1.25;
+  opacity: 0.62;
 }
 
-/* Component → page parent(s); only rendered when parents is set. */
-.sticky-parents {
-  margin-top: 0.28rem;
+/* Who below the name on triggers/screens keeps the same top gap as sticky-lane. */
+.sticky .name + .sticky-parents {
+  margin-top: 0.4rem;
+}
+
+/* Triggers/screens: Location line. Prefix/value split comes later. */
+.sticky-trigger-location {
+  margin: 0;
   font-size: 0.68rem;
   font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.02em;
   line-height: 1.25;
-  opacity: 0.78;
+  opacity: 1;
+  color: inherit;
+}
+
+/* Data table For: hugs the title; gap sits between For: and Who. */
+.sticky-data-table-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.05rem;
+}
+
+.sticky-data-table-meta--before-divider {
+  margin-bottom: 0;
+}
+
+/* For: on data tables. Prefix/value split comes later. */
+.sticky-data-table-context {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  opacity: 1;
+  color: inherit;
 }
 
 .sticky.automation {
@@ -932,10 +981,36 @@ body,
   border-color: #b08968;
 }
 
+.kind-icon,
 .kind-gear {
   width: 14px;
   height: 14px;
   display: block;
+  flex-shrink: 0;
+  /* Lucide stroke icons inherit sticky kind color. */
+  stroke: currentColor;
+  fill: none;
+}
+
+.kind-icon-combo {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.kind-icon-combo > .kind-icon:first-child {
+  display: block;
+}
+
+.kind-icon--tap {
+  position: absolute;
+  right: -1px;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  opacity: 0.95;
 }
 
 .react-flow__handle {

@@ -18,7 +18,7 @@ import { computeLayout, type DiagramMode } from "./layout";
 import { NODE_H, NODE_W } from "./layoutMetrics";
 import { packLayout, type NodeSize } from "./packLayout";
 import { LAYOUT_MORPH_MS, useLayoutMorph } from "./useLayoutMorph";
-import { StickyNode, type StickyData } from "./StickyNode";
+import { StickyNode, formatStickyKindLabel, type StickyData } from "./StickyNode";
 import { VerticalEntryEdge } from "./VerticalEntryEdge";
 import { computeGutterEmphasis } from "./gutterEmphasis";
 import { StreamGutter } from "./StreamGutter";
@@ -44,6 +44,11 @@ import { computeTimelineRange, listWorkflowEventOptions, timelineSelectionPath }
 import { nextDiagramMode } from "./diagramMode";
 import { streamViewportLooksStale } from "./streamStoryCamera";
 import { BAND_LABEL_DESIGN_UI } from "./streamLabels";
+import {
+  dataTableWhoStreamId,
+  formatDataTableLaneLabel,
+  formatLaneLabel,
+} from "./laneLabel";
 
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 1.5;
@@ -66,6 +71,7 @@ function stickyHandles(width: number, height: number) {
     { id: "b-in", type: "target" as const, position: Position.Bottom, x: cx, y: height - hh / 2, width: hw, height: hh },
     { id: "b-out", type: "source" as const, position: Position.Bottom, x: cx, y: height - hh / 2, width: hw, height: hh },
     { id: "l-in", type: "target" as const, position: Position.Left, x: -hw / 2, y: cy, width: hw, height: hh },
+    { id: "l-out", type: "source" as const, position: Position.Left, x: -hw / 2, y: cy, width: hw, height: hh },
     { id: "r-out", type: "source" as const, position: Position.Right, x: width - hw / 2, y: cy, width: hw, height: hh },
   ];
 }
@@ -171,18 +177,13 @@ function cameraIntentForPostMorph(
 function formatFocusLabel(doc: ReturnType<typeof BlueprintDocumentSchema.parse>, anchorId: string): string {
   const node = doc.nodes.find((n) => n.id === anchorId);
   if (!node) return anchorId;
-  const kind =
-    node.type === "command"
-      ? "Command"
-      : node.type === "view"
-        ? "View"
-        : node.type === "screen"
-          ? "Screen"
-          : node.type === "trigger"
-            ? "Trigger"
-            : node.type === "automation"
-              ? "Automation"
-              : "Event";
+  const kind = formatStickyKindLabel({
+    kind: node.type,
+    name: node.name,
+    external: node.type === "trigger" ? Boolean(node.external) : undefined,
+    autoRedirect: node.type === "trigger" ? Boolean(node.autoRedirect) : undefined,
+    parents: node.type === "trigger" ? node.parents : undefined,
+  });
   return `${kind} — ${node.name}`;
 }
 
@@ -557,10 +558,13 @@ export function BlueprintCanvas() {
   const baseStickyNodes: Node[] = useMemo(
     () => {
       const streamNameById = new Map(doc.streams.map((s) => [s.id, s.name]));
-      const titleCase = (value: string) =>
-        value.replace(/(^|\s)(\S)/g, (_lead, space: string, ch: string) => space + ch.toUpperCase());
       const nodeById = new Map(doc.nodes.map((node) => [node.id, node]));
-      const commandStreamLabel = (commandId: string): string | undefined => {
+      const streamById = new Map(doc.streams.map((stream) => [stream.id, stream]));
+      const laneForStream = (streamId: string | undefined) => {
+        if (!streamId) return undefined;
+        return formatLaneLabel(streamById.get(streamId)?.band, streamNameById.get(streamId));
+      };
+      const commandStreamId = (commandId: string): string | undefined => {
         const streamIds = new Set<string>();
         for (const edge of doc.edges) {
           if (edge.rel !== "produces" || edge.from !== commandId) continue;
@@ -568,41 +572,27 @@ export function BlueprintCanvas() {
           if (produced?.type === "event") streamIds.add(produced.streamId);
         }
         if (streamIds.size !== 1) return undefined;
-        return streamNameById.get([...streamIds][0]!);
-      };
-      const viewUiStreamLabel = (viewId: string): string | undefined => {
-        for (const edge of doc.edges) {
-          if (edge.rel !== "rendersOn" || edge.from !== viewId) continue;
-          const ui = nodeById.get(edge.to);
-          if (ui && (ui.type === "screen" || ui.type === "trigger")) {
-            return streamNameById.get(ui.streamId);
-          }
-        }
-        return undefined;
+        return [...streamIds][0];
       };
       return doc.nodes.map((n) => {
         const p = displayPositions.get(n.id) ?? { x: 0, y: 0 };
-        let timelineEvent =
-          diagramMode === "timeline" &&
-          (n.type === "event" || n.type === "trigger" || n.type === "command" || n.type === "screen");
         let subtitle: string | undefined;
-        let streamTitle: string | undefined;
-        if (timelineEvent && (n.type === "event" || n.type === "trigger" || n.type === "screen")) {
-          const streamName = streamNameById.get(n.streamId);
-          streamTitle = streamName ? titleCase(streamName) : undefined;
-        } else if (timelineEvent && n.type === "command") {
-          const streamName = commandStreamLabel(n.id);
-          streamTitle = streamName ? titleCase(streamName) : undefined;
-        } else if (diagramMode === "timeline" && n.type === "view") {
-          const streamName = viewUiStreamLabel(n.id) ?? streamNameById.get(n.streamId);
-          if (streamName) {
-            timelineEvent = true;
-            streamTitle = titleCase(streamName);
+        let laneLabel: string | undefined;
+        let whoLabel: string | undefined;
+        let contextLabel: string | undefined;
+        if (diagramMode === "timeline") {
+          if (n.type === "event" || n.type === "trigger" || n.type === "screen") {
+            laneLabel = laneForStream(n.streamId);
+          } else if (n.type === "command") {
+            laneLabel = laneForStream(commandStreamId(n.id) ?? n.streamId);
+          } else if (n.type === "dataTable") {
+            whoLabel = laneForStream(dataTableWhoStreamId(doc, n.id) ?? n.streamId);
+            contextLabel = formatDataTableLaneLabel(doc, n.id);
+          } else if (n.type === "automation") {
+            laneLabel = laneForStream(n.streamId);
           }
         } else if (n.type === "command" && n.rejections.length) {
           subtitle = `${n.rejections.length} rejection(s)`;
-        } else if (diagramMode === "timeline" && n.type === "automation") {
-          subtitle = streamNameById.get(n.streamId);
         }
         const isFocusAnchor = focusAnchorId !== null && n.id === focusAnchorId;
         const onWorkflowRoute =
@@ -628,15 +618,16 @@ export function BlueprintCanvas() {
             kind: n.type,
             name: n.name,
             subtitle,
-            streamTitle,
-            timelineEvent,
+            laneLabel,
+            whoLabel,
+            contextLabel,
             fields:
               diagramMode === "timeline" &&
               (n.type === "event" || n.type === "trigger" || n.type === "command") &&
               "fields" in n &&
               n.fields?.length
                 ? n.fields
-                : diagramMode === "timeline" && n.type === "view" && n.fields.length
+                : diagramMode === "timeline" && n.type === "dataTable" && n.fields.length
                   ? n.fields.map((field) => ({
                       name: field.name,
                       type: field.type,
@@ -644,7 +635,7 @@ export function BlueprintCanvas() {
                         field.source.kind === "fromEvent"
                           ? `From ${field.source.eventId}.${field.source.field}.`
                           : field.source.kind === "derived"
-                            ? field.source.note ?? "Derived for this view."
+                            ? field.source.note ?? "Derived for this data table."
                             : field.source.kind === "user"
                               ? "Supplied by the user."
                               : field.source.kind === "generated"
@@ -663,6 +654,7 @@ export function BlueprintCanvas() {
             onWorkflowRoute,
             selected,
             external: n.type === "trigger" && Boolean(n.external),
+            autoRedirect: n.type === "trigger" && Boolean(n.autoRedirect),
             parents:
               n.type === "trigger" && n.parents?.length ? n.parents : undefined,
           } satisfies StickyData,
@@ -728,15 +720,22 @@ export function BlueprintCanvas() {
         .filter(Boolean)
         .join(" ");
 
+      const stroke = isRouteEdge ? WORKFLOW_ROUTE_STROKE : e.style?.stroke;
+      const markerEnd =
+        e.markerEnd && typeof e.markerEnd === "object"
+          ? { ...e.markerEnd, color: typeof stroke === "string" ? stroke : undefined }
+          : e.markerEnd;
+
       return {
         ...e,
         hidden: false,
         animated: animate,
         zIndex: isRouteEdge ? 8 : e.zIndex,
         className: classNames || undefined,
+        markerEnd,
         style: {
           ...e.style,
-          stroke: isRouteEdge ? WORKFLOW_ROUTE_STROKE : e.style?.stroke,
+          stroke,
           strokeWidth: isRouteEdge ? 3 : e.style?.strokeWidth,
           opacity: isRouteEdge ? 1 : strokeOp,
           transition: "opacity 0.22s ease, stroke 0.22s ease",
@@ -828,13 +827,25 @@ export function BlueprintCanvas() {
                 <i style={{ background: "#4a8fd4" }} /> Command
               </span>
               <span>
-                <i style={{ background: "#5cb85c" }} /> View
+                <i style={{ background: "#5cb85c" }} /> Data Table
               </span>
               <span>
-                <i style={{ background: "#eceff4" }} /> Screen
+                <i style={{ background: "#eceff4" }} /> Web Page
               </span>
               <span>
-                <i style={{ background: "#c5d4e8" }} /> Trigger
+                <i style={{ background: "#eceff4" }} /> Mobile App Screen
+              </span>
+              <span>
+                <i style={{ background: "#c5d4e8" }} /> Element In Web Page
+              </span>
+              <span>
+                <i style={{ background: "#c5d4e8" }} /> Element On Mobile App
+              </span>
+              <span>
+                <i style={{ background: "#c5d4e8" }} /> External Web Page
+              </span>
+              <span>
+                <i style={{ background: "#c5d4e8" }} /> Auto-Redirect URL
               </span>
               <span>
                 <i style={{ background: "#e7dcc6" }} /> Automation
@@ -914,7 +925,7 @@ export function BlueprintCanvas() {
                 const k = (n.data as { kind?: string }).kind;
                 if (k === "event") return "#f5c542";
                 if (k === "command") return "#4a8fd4";
-                if (k === "view") return "#5cb85c";
+                if (k === "dataTable") return "#5cb85c";
                 if (k === "screen") return "#eceff4";
                 if (k === "trigger") return "#c5d4e8";
                 if (k === "automation") return "#e7dcc6";

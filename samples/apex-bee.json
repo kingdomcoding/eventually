@@ -34,11 +34,15 @@
       "evt-flag-imported",
       "evt-flag-raised",
       "evt-flag-resolved",
+      "evt-cohort-window-opened",
+      "evt-license-purchase-initiated",
       "evt-single-charge-initiated",
       "evt-customer-redirected-to-success",
       "evt-customer-redirected-to-cancel",
       "evt-charge-status-verified",
-      "evt-charge-succeeded"
+      "evt-charge-succeeded",
+      "evt-license-issued",
+      "evt-cohort-window-closed"
     ]
   },
   "streams": [
@@ -55,34 +59,40 @@
       "order": 1
     },
     {
+      "id": "lane-license-purchase-process-manager",
+      "name": "License Purchase Process Manager",
+      "band": "ui",
+      "order": 2
+    },
+    {
       "id": "lane-subscriber",
       "name": "Subscriber",
       "band": "ui",
-      "order": 2
+      "order": 3
     },
     {
       "id": "lane-group-member",
       "name": "Group member",
       "band": "ui",
-      "order": 3
+      "order": 4
     },
     {
       "id": "lane-group-host",
       "name": "Group host",
       "band": "ui",
-      "order": 4
+      "order": 5
     },
     {
       "id": "lane-marketing-lead",
       "name": "Marketing lead",
       "band": "ui",
-      "order": 5
+      "order": 6
     },
     {
       "id": "lane-product-admin",
       "name": "Product admin",
       "band": "ui",
-      "order": 6
+      "order": 7
     },
     {
       "id": "lane-writes",
@@ -113,10 +123,39 @@
       }
     },
     {
+      "id": "stream-licensing",
+      "name": "Licensing",
+      "band": "events",
+      "order": 1,
+      "streamPattern": "licensing-{userId}",
+      "streamShape": {
+        "entryOneOf": [
+          "evt-cohort-window-opened",
+          "evt-license-purchase-initiated",
+          "evt-license-issued",
+          "evt-cohort-window-closed"
+        ],
+        "layoutColumns": [
+          [
+            "evt-cohort-window-opened"
+          ],
+          [
+            "evt-license-purchase-initiated"
+          ],
+          [
+            "evt-license-issued"
+          ],
+          [
+            "evt-cohort-window-closed"
+          ]
+        ]
+      }
+    },
+    {
       "id": "stream-subscription",
       "name": "Subscription",
       "band": "events",
-      "order": 1,
+      "order": 2,
       "streamPattern": "subscription-{userId}",
       "streamShape": {
         "entryOneOf": [
@@ -144,7 +183,7 @@
       "id": "stream-payment",
       "name": "Payment",
       "band": "events",
-      "order": 2,
+      "order": 3,
       "streamPattern": "payment-{reference}",
       "streamShape": {
         "entryOneOf": [
@@ -168,28 +207,28 @@
       "id": "stream-paystack-transaction",
       "name": "Paystack transaction",
       "band": "events",
-      "order": 3,
+      "order": 4,
       "streamPattern": "paystack-transaction-{reference}"
     },
     {
       "id": "stream-monify-transaction",
       "name": "Monify transaction",
       "band": "events",
-      "order": 4,
+      "order": 5,
       "streamPattern": "monify-transaction-{reference}"
     },
     {
       "id": "stream-attempt",
       "name": "Exam attempt",
       "band": "events",
-      "order": 5,
+      "order": 6,
       "streamPattern": "attempt-{attemptId}"
     },
     {
       "id": "stream-interview",
       "name": "Interview session",
       "band": "events",
-      "order": 6,
+      "order": 7,
       "streamPattern": "interview-{sessionId}",
       "streamShape": {
         "exitOneOf": [
@@ -217,21 +256,21 @@
       "id": "stream-group",
       "name": "Study group",
       "band": "events",
-      "order": 7,
+      "order": 8,
       "streamPattern": "group-{cohortId}"
     },
     {
       "id": "stream-joint",
       "name": "Joint exam",
       "band": "events",
-      "order": 8,
+      "order": 9,
       "streamPattern": "session-{sessionId}"
     },
     {
       "id": "stream-flag",
       "name": "Question flag",
       "band": "events",
-      "order": 9,
+      "order": 10,
       "streamPattern": "flag-{flagId}",
       "streamShape": {
         "entryOneOf": [
@@ -343,11 +382,98 @@
     },
     {
       "type": "event",
+      "id": "evt-cohort-window-opened",
+      "name": "Cohort Window Opened",
+      "streamId": "stream-licensing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 1,
+      "payload": [],
+      "fields": [
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "ID of this cohort window."
+        },
+        {
+          "name": "program_id",
+          "type": "uuid",
+          "description": "Program this window reflects (e.g. MMDP, standard, or another program)."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Display name of the cohort window."
+        },
+        {
+          "name": "price",
+          "type": "integer",
+          "description": "Price in cobalt for licenses in this cohort window."
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "id": "evt-license-purchase-initiated",
+      "name": "License Purchase Initiated",
+      "streamId": "stream-licensing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 2,
+      "payload": [],
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "description": "User ID of the learner whose license purchase was initiated."
+        },
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "Cohort window ID for the license purchase that was initiated."
+        }
+      ]
+    },
+    {
+      "type": "event",
+      "id": "evt-license-issued",
+      "name": "License Issued",
+      "streamId": "stream-licensing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 3,
+      "payload": [
+        {
+          "name": "payload",
+          "type": "json",
+          "optional": true,
+          "source": {
+            "kind": "derived"
+          }
+        }
+      ],
+      "notes": "Standalone on the Licensing timeline for now — not wired to commands or data tables yet."
+    },
+    {
+      "type": "event",
+      "id": "evt-cohort-window-closed",
+      "name": "Cohort Window Closed",
+      "streamId": "stream-licensing",
+      "sliceId": "slice-billing",
+      "timelineIndex": 4,
+      "payload": [],
+      "fields": [
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "ID of the cohort window that closed. Complementary to Cohort Window Opened."
+        }
+      ]
+    },
+    {
+      "type": "event",
       "id": "evt-subscription-activated",
       "name": "Subscription Activated V1",
       "streamId": "stream-subscription",
       "sliceId": "slice-billing",
-      "timelineIndex": 2,
+      "timelineIndex": 3,
       "payload": [
         {
           "name": "payload",
@@ -365,7 +491,7 @@
       "name": "Subscription Updated V1",
       "streamId": "stream-subscription",
       "sliceId": "slice-billing",
-      "timelineIndex": 3,
+      "timelineIndex": 4,
       "payload": [
         {
           "name": "payload",
@@ -383,7 +509,7 @@
       "name": "Subscription Cancelled V1",
       "streamId": "stream-subscription",
       "sliceId": "slice-billing",
-      "timelineIndex": 4,
+      "timelineIndex": 5,
       "payload": [
         {
           "name": "payload",
@@ -766,7 +892,7 @@
       "fields": [
         {
           "name": "transaction_id",
-          "type": "string",
+          "type": "uuid",
           "description": "Transaction ID for this charge. Source TBD."
         },
         {
@@ -799,7 +925,7 @@
     {
       "type": "event",
       "id": "evt-customer-redirected-to-success",
-      "name": "Customer Redirected To Success Page",
+      "name": "Customer Redirected From Checkout Page To Success URL",
       "streamId": "stream-paystack-transaction",
       "sliceId": "slice-billing",
       "timelineIndex": 1,
@@ -808,7 +934,7 @@
     {
       "type": "event",
       "id": "evt-customer-redirected-to-cancel",
-      "name": "Customer Redirected To Cancel Page",
+      "name": "Customer Redirected From Checkout Page To Cancel URL",
       "streamId": "stream-paystack-transaction",
       "sliceId": "slice-billing",
       "timelineIndex": 2,
@@ -894,6 +1020,47 @@
     },
     {
       "type": "command",
+      "id": "cmd-initiate-license-purchase",
+      "name": "Initiate License Purchase",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "input": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "optional": false,
+          "source": {
+            "kind": "user"
+          }
+        },
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "optional": false,
+          "source": {
+            "kind": "user"
+          }
+        }
+      ],
+      "produces": [
+        "evt-license-purchase-initiated"
+      ],
+      "rejections": [],
+      "fields": [
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "description": "User ID of the learner initiating the license purchase."
+        },
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "Cohort window ID for the license being purchased."
+        }
+      ]
+    },
+    {
+      "type": "command",
       "id": "cmd-activate-subscription",
       "name": "Activate Subscription",
       "streamId": "lane-writes",
@@ -972,12 +1139,12 @@
         {
           "name": "email",
           "type": "string",
-          "description": "User email from the Subscribe with Paystack Button. Paystack initialize requires the customer's email."
+          "description": "User email for Paystack initialize (customer email required by Paystack)."
         },
         {
           "name": "amount",
           "type": "number",
-          "description": "Amount to be paid in kobo, from the Subscribe with Paystack Button."
+          "description": "Amount to be paid in kobo for Paystack initialize."
         }
       ],
       "apiClientResponse": [
@@ -1045,8 +1212,8 @@
     },
     {
       "type": "command",
-      "id": "cmd-redirect-to-success-page",
-      "name": "Mark Customer Visit to Success Page",
+      "id": "cmd-record-customer-redirect-success",
+      "name": "Record Customer Redirect From Checkout Page To Success URL",
       "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
@@ -1054,12 +1221,12 @@
         "evt-customer-redirected-to-success"
       ],
       "rejections": [],
-      "notes": "Records that the customer visited the Paystack payment success page."
+      "notes": "Issued from the Success Auto-Redirect URL after Paystack checkout. Produces Customer Redirected From Checkout Page To Success URL."
     },
     {
       "type": "command",
-      "id": "cmd-redirect-to-cancel-page",
-      "name": "Mark Customer Visit to Cancel Page",
+      "id": "cmd-record-customer-redirect-failure",
+      "name": "Record Customer Redirect From Checkout Page To Cancel URL",
       "streamId": "lane-writes",
       "sliceId": "slice-billing",
       "input": [],
@@ -1067,7 +1234,7 @@
         "evt-customer-redirected-to-cancel"
       ],
       "rejections": [],
-      "notes": "Records that the customer visited the Paystack payment cancel page."
+      "notes": "Issued from the Failure Auto-Redirect URL after Paystack checkout. Produces Customer Redirected From Checkout Page To Cancel URL."
     },
     {
       "type": "command",
@@ -1299,8 +1466,8 @@
       "rejections": []
     },
     {
-      "type": "view",
-      "id": "view-devices",
+      "type": "dataTable",
+      "id": "data-table-devices",
       "name": "Devices",
       "streamId": "lane-writes",
       "sliceId": "slice-auth",
@@ -1312,8 +1479,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-entitlement",
+      "type": "dataTable",
+      "id": "data-table-entitlement",
       "name": "Entitlement",
       "streamId": "lane-writes",
       "sliceId": "slice-billing",
@@ -1327,8 +1494,19 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-payments",
+      "type": "dataTable",
+      "id": "data-table-initiated-license-purchases",
+      "name": "Initiated License Purchases",
+      "streamId": "lane-writes",
+      "sliceId": "slice-billing",
+      "fields": [],
+      "fedBy": [
+        "evt-license-purchase-initiated"
+      ]
+    },
+    {
+      "type": "dataTable",
+      "id": "data-table-payments",
       "name": "Payments",
       "streamId": "lane-writes",
       "sliceId": "slice-billing",
@@ -1341,15 +1519,57 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-paystack-checkout",
+      "type": "dataTable",
+      "id": "data-table-open-cohort-windows",
+      "name": "Open Cohort Windows",
+      "streamId": "lane-writes",
+      "sliceId": "slice-available-license-cards",
+      "fields": [
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "optional": false,
+          "source": {
+            "kind": "fromEvent",
+            "eventId": "evt-cohort-window-opened",
+            "field": "cohort_window_id"
+          }
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": false,
+          "source": {
+            "kind": "fromEvent",
+            "eventId": "evt-cohort-window-opened",
+            "field": "name"
+          }
+        },
+        {
+          "name": "price",
+          "type": "integer",
+          "optional": false,
+          "source": {
+            "kind": "fromEvent",
+            "eventId": "evt-cohort-window-opened",
+            "field": "price"
+          }
+        }
+      ],
+      "fedBy": [
+        "evt-cohort-window-opened"
+      ]
+    },
+    {
+      "type": "dataTable",
+      "id": "data-table-paystack-checkout",
       "name": "Initiated Transactions",
       "streamId": "lane-writes",
       "sliceId": "slice-paystack-checkout",
       "fields": [
         {
           "name": "transaction_id",
-          "type": "string",
+          "type": "uuid",
           "optional": false,
           "source": {
             "kind": "fromEvent",
@@ -1373,8 +1593,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-attempts",
+      "type": "dataTable",
+      "id": "data-table-attempts",
       "name": "Attempts",
       "streamId": "lane-writes",
       "sliceId": "slice-exam",
@@ -1384,8 +1604,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-interview-session",
+      "type": "dataTable",
+      "id": "data-table-interview-session",
       "name": "Interview Session",
       "streamId": "lane-writes",
       "sliceId": "slice-interview",
@@ -1399,8 +1619,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-interview-review",
+      "type": "dataTable",
+      "id": "data-table-interview-review",
       "name": "Interview Review",
       "streamId": "lane-writes",
       "sliceId": "slice-interview",
@@ -1410,8 +1630,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-groups",
+      "type": "dataTable",
+      "id": "data-table-groups",
       "name": "Study Groups",
       "streamId": "lane-writes",
       "sliceId": "slice-groups",
@@ -1423,8 +1643,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-memberships",
+      "type": "dataTable",
+      "id": "data-table-memberships",
       "name": "Memberships",
       "streamId": "lane-writes",
       "sliceId": "slice-groups",
@@ -1435,8 +1655,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-joint-sessions",
+      "type": "dataTable",
+      "id": "data-table-joint-sessions",
       "name": "Joint Sessions",
       "streamId": "lane-writes",
       "sliceId": "slice-groups",
@@ -1447,8 +1667,8 @@
       ]
     },
     {
-      "type": "view",
-      "id": "view-flags",
+      "type": "dataTable",
+      "id": "data-table-flags",
       "name": "Question Flags",
       "streamId": "lane-writes",
       "sliceId": "slice-trust",
@@ -1510,32 +1730,9 @@
       "notes": "/settings/subscription — start_checkout, cancel"
     },
     {
-      "type": "trigger",
-      "id": "trg-pay-with-paystack",
-      "name": "Subscribe with Paystack Button",
-      "streamId": "lane-authenticated-learner",
-      "sliceId": "slice-billing",
-      "actor": "Subscriber",
-      "parents": [
-        "Purchase License Page"
-      ],
-      "fields": [
-        {
-          "name": "email",
-          "type": "string",
-          "description": "The user's email for the person paying with this button. Paystack requires email."
-        },
-        {
-          "name": "amount",
-          "type": "number",
-          "description": "The amount to be paid, in kobo."
-        }
-      ]
-    },
-    {
       "type": "screen",
       "id": "scr-payment-page",
-      "name": "Purchase License Page",
+      "name": "License Purchase Page",
       "streamId": "lane-authenticated-learner",
       "sliceId": "slice-paystack-checkout",
       "actor": "Authenticated Learner",
@@ -1543,49 +1740,31 @@
         {
           "uiField": "transaction_id",
           "target": {
-            "kind": "viewField",
-            "viewId": "view-paystack-checkout",
+            "kind": "dataTableField",
+            "dataTableId": "data-table-paystack-checkout",
             "field": "transaction_id"
           }
         },
         {
           "uiField": "authorization_url",
           "target": {
-            "kind": "viewField",
-            "viewId": "view-paystack-checkout",
+            "kind": "dataTableField",
+            "dataTableId": "data-table-paystack-checkout",
             "field": "authorization_url"
           }
         }
       ],
-      "notes": "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the Subscribe with Paystack Button path."
+      "notes": "In-app payment page that hands the customer off to hosted Paystack checkout. Reconnects the License Checkout Modal path."
     },
     {
-      "type": "trigger",
-      "id": "trg-paystack-checkout",
-      "name": "Paystack Checkout Page",
+      "type": "screen",
+      "id": "scr-transaction-status",
+      "name": "Transaction Status Page",
       "streamId": "lane-authenticated-learner",
       "sliceId": "slice-paystack-checkout",
       "actor": "Authenticated Learner",
-      "external": true,
-      "notes": "EXTERNAL — Hosted Paystack checkout outside the product. Customer pays here before returning to success or cancel."
-    },
-    {
-      "type": "trigger",
-      "id": "trg-success-page",
-      "name": "Paystack Success Splash Page",
-      "streamId": "lane-authenticated-learner",
-      "sliceId": "slice-paystack-checkout",
-      "actor": "Authenticated Learner",
-      "notes": "In-app success return after Paystack checkout; issues Mark Customer Visit to Success Page."
-    },
-    {
-      "type": "trigger",
-      "id": "trg-cancel-page",
-      "name": "Paystack Cancel Splash Page",
-      "streamId": "lane-authenticated-learner",
-      "sliceId": "slice-paystack-checkout",
-      "actor": "Authenticated Learner",
-      "notes": "In-app cancel return after Paystack checkout; issues Mark Customer Visit to Cancel Page."
+      "bindings": [],
+      "notes": "In-app landing page after Paystack auto-redirect URLs. Stands alone — does not issue a command."
     },
     {
       "type": "screen",
@@ -1708,15 +1887,112 @@
       "notes": "/settings/admin — resolve_flag"
     },
     {
+      "type": "trigger",
+      "id": "trg-license-checkout-modal",
+      "name": "License Checkout Modal",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-billing",
+      "actor": "Subscriber",
+      "parents": [
+        "License Purchase Page"
+      ],
+      "fields": [
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "ID of the cohort window being checked out."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Display name of the cohort window."
+        },
+        {
+          "name": "price",
+          "type": "integer",
+          "description": "Price in cobalt for licenses in this cohort window."
+        }
+      ]
+    },
+    {
+      "type": "trigger",
+      "id": "trg-available-license-cards",
+      "name": "Available License Cards",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-available-license-cards",
+      "actor": "Subscriber",
+      "parents": [
+        "License Purchase Page"
+      ],
+      "fields": [
+        {
+          "name": "cohort_window_id",
+          "type": "uuid",
+          "description": "ID of the open cohort window shown on this card."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Display name of the open cohort window."
+        },
+        {
+          "name": "price",
+          "type": "integer",
+          "description": "Price in cobalt for licenses in this cohort window."
+        }
+      ]
+    },
+    {
+      "type": "trigger",
+      "id": "trg-paystack-checkout",
+      "name": "Paystack Checkout Page",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "external": true,
+      "notes": "EXTERNAL — Hosted Paystack checkout outside the product. Customer pays here, then hits a success or failure auto-redirect URL."
+    },
+    {
+      "type": "trigger",
+      "id": "trg-auto-redirect-success",
+      "name": "Success Auto-Redirect URL",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "autoRedirect": true,
+      "notes": "Paystack success return URL. Issues Record Customer Redirect From Checkout Page To Success URL, then redirects to the Transaction Status Page."
+    },
+    {
+      "type": "trigger",
+      "id": "trg-auto-redirect-failure",
+      "name": "Failure Auto-Redirect URL",
+      "streamId": "lane-authenticated-learner",
+      "sliceId": "slice-paystack-checkout",
+      "actor": "Authenticated Learner",
+      "autoRedirect": true,
+      "notes": "Paystack failure/cancel return URL. Issues Record Customer Redirect From Checkout Page To Cancel URL, then redirects to the Transaction Status Page."
+    },
+    {
       "type": "automation",
       "id": "auto-device-cap",
       "name": "Device cap",
       "streamId": "lane-visitor",
       "sliceId": "slice-auth",
       "observes": [
-        "view-devices"
+        "data-table-devices"
       ],
       "notes": "Accounts.register_device revokes the oldest device past the cap"
+    },
+    {
+      "type": "automation",
+      "id": "auto-subscription-charge",
+      "name": "Trigger Paystack Payment",
+      "streamId": "lane-license-purchase-process-manager",
+      "sliceId": "slice-billing",
+      "observes": [
+        "data-table-initiated-license-purchases"
+      ],
+      "notes": "Watches Initiated License Purchases and issues Initiate Single Charge to start Paystack checkout"
     },
     {
       "type": "automation",
@@ -1725,7 +2001,7 @@
       "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "observes": [
-        "view-payments"
+        "data-table-payments"
       ],
       "notes": "POST /webhooks/paystack — translation into billing commands"
     },
@@ -1736,7 +2012,7 @@
       "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "observes": [
-        "view-payments"
+        "data-table-payments"
       ],
       "notes": "POST /webhooks/monnify"
     },
@@ -1747,7 +2023,7 @@
       "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "observes": [
-        "view-payments"
+        "data-table-payments"
       ],
       "notes": "Billing.reconcile_reference on return URL"
     },
@@ -1758,7 +2034,7 @@
       "streamId": "lane-subscriber",
       "sliceId": "slice-billing",
       "observes": [
-        "view-entitlement"
+        "data-table-entitlement"
       ],
       "notes": "Billing.Poller every 24h — poll_all, Monnify renewals"
     },
@@ -1937,614 +2213,848 @@
     },
     {
       "id": "em-issue-9",
+      "from": "trg-license-checkout-modal",
+      "to": "cmd-initiate-license-purchase",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-10",
+      "from": "auto-subscription-charge",
+      "to": "cmd-initiate-single-charge",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-11",
+      "from": "trg-auto-redirect-success",
+      "to": "cmd-record-customer-redirect-success",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-12",
+      "from": "trg-auto-redirect-failure",
+      "to": "cmd-record-customer-redirect-failure",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-13",
       "from": "scr-mobile-billing",
       "to": "cmd-initiate-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-56",
-      "from": "trg-pay-with-paystack",
-      "to": "cmd-initiate-single-charge",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-57",
-      "from": "trg-success-page",
-      "to": "cmd-redirect-to-success-page",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-58",
-      "from": "trg-cancel-page",
-      "to": "cmd-redirect-to-cancel-page",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-10",
+      "id": "em-issue-14",
       "from": "scr-mobile-billing",
       "to": "cmd-cancel-subscription",
       "rel": "issues"
     },
     {
-      "id": "em-issue-11",
-      "from": "scr-mobile-billing",
-      "to": "cmd-activate-subscription",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-12",
-      "from": "scr-pay-return",
-      "to": "cmd-activate-subscription",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-13",
-      "from": "auto-paystack-webhook",
-      "to": "cmd-confirm-payment",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-14",
-      "from": "auto-paystack-webhook",
-      "to": "cmd-import-payment",
-      "rel": "issues"
-    },
-    {
       "id": "em-issue-15",
-      "from": "auto-paystack-webhook",
+      "from": "scr-mobile-billing",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-16",
-      "from": "auto-paystack-webhook",
-      "to": "cmd-update-subscription",
+      "from": "scr-pay-return",
+      "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-17",
       "from": "auto-paystack-webhook",
-      "to": "cmd-cancel-subscription",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-18",
-      "from": "auto-monnify-webhook",
       "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-19",
-      "from": "auto-monnify-webhook",
+      "id": "em-issue-18",
+      "from": "auto-paystack-webhook",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-20",
-      "from": "auto-monnify-webhook",
+      "id": "em-issue-19",
+      "from": "auto-paystack-webhook",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
-      "id": "em-issue-21",
-      "from": "auto-monnify-webhook",
+      "id": "em-issue-20",
+      "from": "auto-paystack-webhook",
       "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-21",
+      "from": "auto-paystack-webhook",
+      "to": "cmd-cancel-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-22",
       "from": "auto-monnify-webhook",
-      "to": "cmd-cancel-subscription",
+      "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
       "id": "em-issue-23",
+      "from": "auto-monnify-webhook",
+      "to": "cmd-import-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-24",
+      "from": "auto-monnify-webhook",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-25",
+      "from": "auto-monnify-webhook",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-26",
+      "from": "auto-monnify-webhook",
+      "to": "cmd-cancel-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-27",
       "from": "auto-billing-reconcile",
       "to": "cmd-confirm-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-24",
+      "id": "em-issue-28",
       "from": "auto-billing-reconcile",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-25",
-      "from": "auto-billing-reconcile",
-      "to": "cmd-activate-subscription",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-26",
-      "from": "auto-billing-poll",
-      "to": "cmd-initiate-payment",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-27",
-      "from": "auto-billing-poll",
-      "to": "cmd-update-subscription",
-      "rel": "issues"
-    },
-    {
-      "id": "em-issue-28",
-      "from": "scr-sys-grant-manual",
-      "to": "cmd-record-manual-payment",
-      "rel": "issues"
-    },
-    {
       "id": "em-issue-29",
-      "from": "scr-sys-grant-manual",
+      "from": "auto-billing-reconcile",
       "to": "cmd-activate-subscription",
       "rel": "issues"
     },
     {
       "id": "em-issue-30",
+      "from": "auto-billing-poll",
+      "to": "cmd-initiate-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-31",
+      "from": "auto-billing-poll",
+      "to": "cmd-update-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-32",
+      "from": "scr-sys-grant-manual",
+      "to": "cmd-record-manual-payment",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-33",
+      "from": "scr-sys-grant-manual",
+      "to": "cmd-activate-subscription",
+      "rel": "issues"
+    },
+    {
+      "id": "em-issue-34",
       "from": "scr-sys-grant-manual",
       "to": "cmd-update-subscription",
       "rel": "issues"
     },
     {
-      "id": "em-issue-31",
+      "id": "em-issue-35",
       "from": "scr-me-hub",
       "to": "cmd-submit-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-32",
+      "id": "em-issue-36",
       "from": "scr-me-hub",
       "to": "cmd-raise-flag",
       "rel": "issues"
     },
     {
-      "id": "em-issue-33",
+      "id": "em-issue-37",
       "from": "scr-joint-exam",
       "to": "cmd-submit-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-34",
+      "id": "em-issue-38",
       "from": "scr-mobile-practice",
       "to": "cmd-submit-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-35",
+      "id": "em-issue-39",
       "from": "scr-mobile-practice",
       "to": "cmd-raise-flag",
       "rel": "issues"
     },
     {
-      "id": "em-issue-36",
+      "id": "em-issue-40",
       "from": "scr-interview",
       "to": "cmd-start-interview-session",
       "rel": "issues"
     },
     {
-      "id": "em-issue-37",
+      "id": "em-issue-41",
       "from": "scr-interview",
       "to": "cmd-score-interview-answer",
       "rel": "issues"
     },
     {
-      "id": "em-issue-38",
+      "id": "em-issue-42",
       "from": "scr-interview",
       "to": "cmd-advance-interview-question",
       "rel": "issues"
     },
     {
-      "id": "em-issue-39",
+      "id": "em-issue-43",
       "from": "scr-interview",
       "to": "cmd-finish-interview-session",
       "rel": "issues"
     },
     {
-      "id": "em-issue-40",
+      "id": "em-issue-44",
       "from": "scr-interview",
       "to": "cmd-abandon-interview-session",
       "rel": "issues"
     },
     {
-      "id": "em-issue-41",
+      "id": "em-issue-45",
       "from": "scr-study-group",
       "to": "cmd-set-join-code",
       "rel": "issues"
     },
     {
-      "id": "em-issue-42",
+      "id": "em-issue-46",
       "from": "scr-study-group",
       "to": "cmd-open-joint-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-43",
+      "id": "em-issue-47",
       "from": "scr-study-group",
       "to": "cmd-close-joint-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-44",
+      "id": "em-issue-48",
       "from": "scr-join-group",
       "to": "cmd-join-group",
       "rel": "issues"
     },
     {
-      "id": "em-issue-45",
+      "id": "em-issue-49",
       "from": "scr-mobile-join-group",
       "to": "cmd-join-group",
       "rel": "issues"
     },
     {
-      "id": "em-issue-46",
+      "id": "em-issue-50",
       "from": "scr-mobile-study-groups",
       "to": "cmd-set-join-code",
       "rel": "issues"
     },
     {
-      "id": "em-issue-47",
+      "id": "em-issue-51",
       "from": "scr-mobile-study-groups",
       "to": "cmd-open-joint-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-48",
+      "id": "em-issue-52",
       "from": "scr-mobile-study-groups",
       "to": "cmd-close-joint-exam",
       "rel": "issues"
     },
     {
-      "id": "em-issue-49",
+      "id": "em-issue-53",
       "from": "scr-settings-admin",
       "to": "cmd-resolve-flag",
       "rel": "issues"
     },
     {
-      "id": "em-issue-50",
+      "id": "em-issue-54",
       "from": "auto-ops-migration",
       "to": "cmd-import-device",
       "rel": "issues"
     },
     {
-      "id": "em-issue-51",
+      "id": "em-issue-55",
       "from": "auto-ops-migration",
       "to": "cmd-import-entitlement",
       "rel": "issues"
     },
     {
-      "id": "em-issue-52",
+      "id": "em-issue-56",
       "from": "auto-ops-migration",
       "to": "cmd-import-payment",
       "rel": "issues"
     },
     {
-      "id": "em-issue-53",
+      "id": "em-issue-57",
       "from": "auto-ops-migration",
       "to": "cmd-import-flag",
       "rel": "issues"
     },
     {
-      "id": "em-issue-54",
+      "id": "em-issue-58",
       "from": "auto-ops-migration",
       "to": "cmd-create-group",
       "rel": "issues"
     },
     {
-      "id": "em-issue-55",
+      "id": "em-issue-59",
       "from": "auto-ops-migration",
       "to": "cmd-update-group-settings",
       "rel": "issues"
     },
     {
-      "id": "em-produce-cmd-import-device",
+      "id": "em-produce-cmd-import-device-evt-device-imported",
       "from": "cmd-import-device",
       "to": "evt-device-imported",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-register-device",
+      "id": "em-produce-cmd-register-device-evt-device-registered",
       "from": "cmd-register-device",
       "to": "evt-device-registered",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-revoke-device",
+      "id": "em-produce-cmd-revoke-device-evt-device-revoked",
       "from": "cmd-revoke-device",
       "to": "evt-device-revoked",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-import-entitlement",
+      "id": "em-produce-cmd-import-entitlement-evt-entitlement-imported",
       "from": "cmd-import-entitlement",
       "to": "evt-entitlement-imported",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-start-trial",
+      "id": "em-produce-cmd-start-trial-evt-trial-started",
       "from": "cmd-start-trial",
       "to": "evt-trial-started",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-activate-subscription",
+      "id": "em-produce-cmd-initiate-license-purchase-evt-license-purchase-initiated",
+      "from": "cmd-initiate-license-purchase",
+      "to": "evt-license-purchase-initiated",
+      "rel": "produces"
+    },
+    {
+      "id": "em-produce-cmd-activate-subscription-evt-subscription-activated",
       "from": "cmd-activate-subscription",
       "to": "evt-subscription-activated",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-update-subscription",
+      "id": "em-produce-cmd-update-subscription-evt-subscription-updated",
       "from": "cmd-update-subscription",
       "to": "evt-subscription-updated",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-cancel-subscription",
+      "id": "em-produce-cmd-cancel-subscription-evt-subscription-cancelled",
       "from": "cmd-cancel-subscription",
       "to": "evt-subscription-cancelled",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-initiate-payment",
+      "id": "em-produce-cmd-initiate-payment-evt-payment-initiated",
       "from": "cmd-initiate-payment",
       "to": "evt-payment-initiated",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-initiate-single-charge",
+      "id": "em-produce-cmd-initiate-single-charge-evt-single-charge-initiated",
       "from": "cmd-initiate-single-charge",
       "to": "evt-single-charge-initiated",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-redirect-to-success-page",
-      "from": "cmd-redirect-to-success-page",
+      "id": "em-produce-cmd-record-customer-redirect-success-evt-customer-redirected-to-success",
+      "from": "cmd-record-customer-redirect-success",
       "to": "evt-customer-redirected-to-success",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-redirect-to-cancel-page",
-      "from": "cmd-redirect-to-cancel-page",
+      "id": "em-produce-cmd-record-customer-redirect-failure-evt-customer-redirected-to-cancel",
+      "from": "cmd-record-customer-redirect-failure",
       "to": "evt-customer-redirected-to-cancel",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-confirm-payment",
+      "id": "em-produce-cmd-confirm-payment-evt-payment-confirmed",
       "from": "cmd-confirm-payment",
       "to": "evt-payment-confirmed",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-import-payment",
+      "id": "em-produce-cmd-import-payment-evt-payment-imported",
       "from": "cmd-import-payment",
       "to": "evt-payment-imported",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-record-manual-payment",
+      "id": "em-produce-cmd-record-manual-payment-evt-manual-payment",
       "from": "cmd-record-manual-payment",
       "to": "evt-manual-payment",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-submit-exam",
+      "id": "em-produce-cmd-submit-exam-evt-exam-submitted",
       "from": "cmd-submit-exam",
       "to": "evt-exam-submitted",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-start-interview-session",
+      "id": "em-produce-cmd-start-interview-session-evt-interview-started",
       "from": "cmd-start-interview-session",
       "to": "evt-interview-started",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-score-interview-answer",
+      "id": "em-produce-cmd-score-interview-answer-evt-interview-scored",
       "from": "cmd-score-interview-answer",
       "to": "evt-interview-scored",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-advance-interview-question",
+      "id": "em-produce-cmd-advance-interview-question-evt-interview-advanced",
       "from": "cmd-advance-interview-question",
       "to": "evt-interview-advanced",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-finish-interview-session",
+      "id": "em-produce-cmd-finish-interview-session-evt-interview-finished",
       "from": "cmd-finish-interview-session",
       "to": "evt-interview-finished",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-abandon-interview-session",
+      "id": "em-produce-cmd-abandon-interview-session-evt-interview-abandoned",
       "from": "cmd-abandon-interview-session",
       "to": "evt-interview-abandoned",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-create-group",
+      "id": "em-produce-cmd-create-group-evt-group-created",
       "from": "cmd-create-group",
       "to": "evt-group-created",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-set-join-code",
+      "id": "em-produce-cmd-set-join-code-evt-join-code-set",
       "from": "cmd-set-join-code",
       "to": "evt-join-code-set",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-join-group",
+      "id": "em-produce-cmd-join-group-evt-member-joined",
       "from": "cmd-join-group",
       "to": "evt-member-joined",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-leave-group",
+      "id": "em-produce-cmd-leave-group-evt-member-left",
       "from": "cmd-leave-group",
       "to": "evt-member-left",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-update-group-settings",
+      "id": "em-produce-cmd-update-group-settings-evt-group-settings-updated",
       "from": "cmd-update-group-settings",
       "to": "evt-group-settings-updated",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-open-joint-exam",
+      "id": "em-produce-cmd-open-joint-exam-evt-joint-opened",
       "from": "cmd-open-joint-exam",
       "to": "evt-joint-opened",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-close-joint-exam",
+      "id": "em-produce-cmd-close-joint-exam-evt-joint-closed",
       "from": "cmd-close-joint-exam",
       "to": "evt-joint-closed",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-import-flag",
+      "id": "em-produce-cmd-import-flag-evt-flag-imported",
       "from": "cmd-import-flag",
       "to": "evt-flag-imported",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-raise-flag",
+      "id": "em-produce-cmd-raise-flag-evt-flag-raised",
       "from": "cmd-raise-flag",
       "to": "evt-flag-raised",
       "rel": "produces"
     },
     {
-      "id": "em-produce-cmd-resolve-flag",
+      "id": "em-produce-cmd-resolve-flag-evt-flag-resolved",
       "from": "cmd-resolve-flag",
       "to": "evt-flag-resolved",
       "rel": "produces"
     },
     {
-      "id": "em-update-view-devices-evt-device-imported",
+      "id": "em-update-data-table-devices-evt-device-imported",
       "from": "evt-device-imported",
-      "to": "view-devices",
+      "to": "data-table-devices",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-devices-evt-device-registered",
+      "id": "em-update-data-table-devices-evt-device-registered",
       "from": "evt-device-registered",
-      "to": "view-devices",
+      "to": "data-table-devices",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-devices-evt-device-revoked",
+      "id": "em-update-data-table-devices-evt-device-revoked",
       "from": "evt-device-revoked",
-      "to": "view-devices",
+      "to": "data-table-devices",
       "rel": "updates"
     },
     {
-      "id": "em-render-view-devices-scr-settings-devices",
-      "from": "view-devices",
+      "id": "em-render-data-table-devices-scr-settings-devices",
+      "from": "data-table-devices",
       "to": "scr-settings-devices",
       "rel": "rendersOn"
     },
     {
-      "id": "em-render-view-devices-scr-mobile-settings",
-      "from": "view-devices",
+      "id": "em-render-data-table-devices-scr-mobile-settings",
+      "from": "data-table-devices",
       "to": "scr-mobile-settings",
       "rel": "rendersOn"
     },
     {
-      "id": "em-update-view-entitlement-evt-entitlement-imported",
+      "id": "em-update-data-table-entitlement-evt-entitlement-imported",
       "from": "evt-entitlement-imported",
-      "to": "view-entitlement",
+      "to": "data-table-entitlement",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-entitlement-evt-trial-started",
+      "id": "em-update-data-table-entitlement-evt-trial-started",
       "from": "evt-trial-started",
-      "to": "view-entitlement",
+      "to": "data-table-entitlement",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-entitlement-evt-subscription-activated",
+      "id": "em-update-data-table-entitlement-evt-subscription-activated",
       "from": "evt-subscription-activated",
-      "to": "view-entitlement",
+      "to": "data-table-entitlement",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-entitlement-evt-subscription-updated",
+      "id": "em-update-data-table-entitlement-evt-subscription-updated",
       "from": "evt-subscription-updated",
-      "to": "view-entitlement",
+      "to": "data-table-entitlement",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-entitlement-evt-subscription-cancelled",
+      "id": "em-update-data-table-entitlement-evt-subscription-cancelled",
       "from": "evt-subscription-cancelled",
-      "to": "view-entitlement",
+      "to": "data-table-entitlement",
       "rel": "updates"
     },
     {
-      "id": "em-render-view-entitlement-scr-subscription",
-      "from": "view-entitlement",
+      "id": "em-render-data-table-entitlement-scr-subscription",
+      "from": "data-table-entitlement",
       "to": "scr-subscription",
       "rel": "rendersOn"
     },
     {
-      "id": "em-render-view-entitlement-scr-mobile-billing",
-      "from": "view-entitlement",
+      "id": "em-render-data-table-entitlement-scr-mobile-billing",
+      "from": "data-table-entitlement",
       "to": "scr-mobile-billing",
       "rel": "rendersOn"
     },
     {
-      "id": "em-update-view-payments-evt-payment-initiated",
+      "id": "em-update-data-table-initiated-license-purchases-evt-license-purchase-initiated",
+      "from": "evt-license-purchase-initiated",
+      "to": "data-table-initiated-license-purchases",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-payments-evt-payment-initiated",
       "from": "evt-payment-initiated",
-      "to": "view-payments",
+      "to": "data-table-payments",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-payments-evt-payment-confirmed",
+      "id": "em-update-data-table-payments-evt-payment-confirmed",
       "from": "evt-payment-confirmed",
-      "to": "view-payments",
+      "to": "data-table-payments",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-payments-evt-payment-imported",
+      "id": "em-update-data-table-payments-evt-payment-imported",
       "from": "evt-payment-imported",
-      "to": "view-payments",
+      "to": "data-table-payments",
       "rel": "updates"
     },
     {
-      "id": "em-update-view-payments-evt-manual-payment",
+      "id": "em-update-data-table-payments-evt-manual-payment",
       "from": "evt-manual-payment",
-      "to": "view-payments",
+      "to": "data-table-payments",
       "rel": "updates"
     },
     {
-      "id": "em-render-view-payments-scr-subscription",
-      "from": "view-payments",
+      "id": "em-render-data-table-payments-scr-subscription",
+      "from": "data-table-payments",
       "to": "scr-subscription",
       "rel": "rendersOn"
     },
     {
-      "id": "em-render-view-payments-scr-pay-return",
-      "from": "view-payments",
+      "id": "em-render-data-table-payments-scr-pay-return",
+      "from": "data-table-payments",
       "to": "scr-pay-return",
       "rel": "rendersOn"
     },
     {
-      "id": "em-render-view-payments-scr-mobile-billing",
-      "from": "view-payments",
+      "id": "em-render-data-table-payments-scr-mobile-billing",
+      "from": "data-table-payments",
       "to": "scr-mobile-billing",
       "rel": "rendersOn"
     },
     {
-      "id": "em-update-view-paystack-checkout-evt-single-charge-initiated",
-      "from": "evt-single-charge-initiated",
-      "to": "view-paystack-checkout",
+      "id": "em-update-data-table-open-cohort-windows-evt-cohort-window-opened",
+      "from": "evt-cohort-window-opened",
+      "to": "data-table-open-cohort-windows",
       "rel": "updates"
     },
     {
-      "id": "em-render-view-paystack-checkout-scr-payment-page",
-      "from": "view-paystack-checkout",
+      "id": "em-render-data-table-open-cohort-windows-trg-available-license-cards",
+      "from": "data-table-open-cohort-windows",
+      "to": "trg-available-license-cards",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-open-cohort-windows-trg-license-checkout-modal",
+      "from": "data-table-open-cohort-windows",
+      "to": "trg-license-checkout-modal",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-paystack-checkout-evt-single-charge-initiated",
+      "from": "evt-single-charge-initiated",
+      "to": "data-table-paystack-checkout",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-paystack-checkout-scr-payment-page",
+      "from": "data-table-paystack-checkout",
       "to": "scr-payment-page",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-attempts-evt-exam-submitted",
+      "from": "evt-exam-submitted",
+      "to": "data-table-attempts",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-attempts-scr-me-hub",
+      "from": "data-table-attempts",
+      "to": "scr-me-hub",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-attempts-scr-joint-exam",
+      "from": "data-table-attempts",
+      "to": "scr-joint-exam",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-attempts-scr-mobile-practice",
+      "from": "data-table-attempts",
+      "to": "scr-mobile-practice",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-interview-session-evt-interview-started",
+      "from": "evt-interview-started",
+      "to": "data-table-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-interview-session-evt-interview-scored",
+      "from": "evt-interview-scored",
+      "to": "data-table-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-interview-session-evt-interview-advanced",
+      "from": "evt-interview-advanced",
+      "to": "data-table-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-interview-session-evt-interview-finished",
+      "from": "evt-interview-finished",
+      "to": "data-table-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-interview-session-evt-interview-abandoned",
+      "from": "evt-interview-abandoned",
+      "to": "data-table-interview-session",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-interview-session-scr-interview",
+      "from": "data-table-interview-session",
+      "to": "scr-interview",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-interview-review-evt-interview-scored",
+      "from": "evt-interview-scored",
+      "to": "data-table-interview-review",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-interview-review-scr-interview",
+      "from": "data-table-interview-review",
+      "to": "scr-interview",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-groups-evt-group-created",
+      "from": "evt-group-created",
+      "to": "data-table-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-groups-evt-group-settings-updated",
+      "from": "evt-group-settings-updated",
+      "to": "data-table-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-groups-evt-join-code-set",
+      "from": "evt-join-code-set",
+      "to": "data-table-groups",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-groups-scr-study-group",
+      "from": "data-table-groups",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-groups-scr-mobile-study-groups",
+      "from": "data-table-groups",
+      "to": "scr-mobile-study-groups",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-memberships-evt-member-joined",
+      "from": "evt-member-joined",
+      "to": "data-table-memberships",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-memberships-evt-member-left",
+      "from": "evt-member-left",
+      "to": "data-table-memberships",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-memberships-scr-study-group",
+      "from": "data-table-memberships",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-memberships-scr-join-group",
+      "from": "data-table-memberships",
+      "to": "scr-join-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-memberships-scr-mobile-join-group",
+      "from": "data-table-memberships",
+      "to": "scr-mobile-join-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-joint-sessions-evt-joint-opened",
+      "from": "evt-joint-opened",
+      "to": "data-table-joint-sessions",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-joint-sessions-evt-joint-closed",
+      "from": "evt-joint-closed",
+      "to": "data-table-joint-sessions",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-joint-sessions-scr-study-group",
+      "from": "data-table-joint-sessions",
+      "to": "scr-study-group",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-joint-sessions-scr-joint-exam",
+      "from": "data-table-joint-sessions",
+      "to": "scr-joint-exam",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-joint-sessions-scr-mobile-study-groups",
+      "from": "data-table-joint-sessions",
+      "to": "scr-mobile-study-groups",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-update-data-table-flags-evt-flag-imported",
+      "from": "evt-flag-imported",
+      "to": "data-table-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-flags-evt-flag-raised",
+      "from": "evt-flag-raised",
+      "to": "data-table-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-update-data-table-flags-evt-flag-resolved",
+      "from": "evt-flag-resolved",
+      "to": "data-table-flags",
+      "rel": "updates"
+    },
+    {
+      "id": "em-render-data-table-flags-scr-me-hub",
+      "from": "data-table-flags",
+      "to": "scr-me-hub",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-flags-scr-mobile-practice",
+      "from": "data-table-flags",
+      "to": "scr-mobile-practice",
+      "rel": "rendersOn"
+    },
+    {
+      "id": "em-render-data-table-flags-scr-settings-admin",
+      "from": "data-table-flags",
+      "to": "scr-settings-admin",
       "rel": "rendersOn"
     },
     {
@@ -2554,214 +3064,34 @@
       "rel": "redirectsTo"
     },
     {
-      "id": "em-redirect-trg-paystack-checkout-trg-success-page",
+      "id": "em-redirect-trg-paystack-checkout-trg-auto-redirect-success",
       "from": "trg-paystack-checkout",
-      "to": "trg-success-page",
+      "to": "trg-auto-redirect-success",
       "rel": "redirectsTo"
     },
     {
-      "id": "em-redirect-trg-paystack-checkout-trg-cancel-page",
+      "id": "em-redirect-trg-paystack-checkout-trg-auto-redirect-failure",
       "from": "trg-paystack-checkout",
-      "to": "trg-cancel-page",
+      "to": "trg-auto-redirect-failure",
       "rel": "redirectsTo"
     },
     {
-      "id": "em-update-view-attempts-evt-exam-submitted",
-      "from": "evt-exam-submitted",
-      "to": "view-attempts",
-      "rel": "updates"
+      "id": "em-redirect-trg-auto-redirect-success-scr-transaction-status",
+      "from": "trg-auto-redirect-success",
+      "to": "scr-transaction-status",
+      "rel": "redirectsTo"
     },
     {
-      "id": "em-render-view-attempts-scr-me-hub",
-      "from": "view-attempts",
-      "to": "scr-me-hub",
-      "rel": "rendersOn"
+      "id": "em-redirect-trg-auto-redirect-failure-scr-transaction-status",
+      "from": "trg-auto-redirect-failure",
+      "to": "scr-transaction-status",
+      "rel": "redirectsTo"
     },
     {
-      "id": "em-render-view-attempts-scr-joint-exam",
-      "from": "view-attempts",
-      "to": "scr-joint-exam",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-attempts-scr-mobile-practice",
-      "from": "view-attempts",
-      "to": "scr-mobile-practice",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-interview-session-evt-interview-started",
-      "from": "evt-interview-started",
-      "to": "view-interview-session",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-interview-session-evt-interview-scored",
-      "from": "evt-interview-scored",
-      "to": "view-interview-session",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-interview-session-evt-interview-advanced",
-      "from": "evt-interview-advanced",
-      "to": "view-interview-session",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-interview-session-evt-interview-finished",
-      "from": "evt-interview-finished",
-      "to": "view-interview-session",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-interview-session-evt-interview-abandoned",
-      "from": "evt-interview-abandoned",
-      "to": "view-interview-session",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-interview-session-scr-interview",
-      "from": "view-interview-session",
-      "to": "scr-interview",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-interview-review-evt-interview-scored",
-      "from": "evt-interview-scored",
-      "to": "view-interview-review",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-interview-review-scr-interview",
-      "from": "view-interview-review",
-      "to": "scr-interview",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-groups-evt-group-created",
-      "from": "evt-group-created",
-      "to": "view-groups",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-groups-evt-group-settings-updated",
-      "from": "evt-group-settings-updated",
-      "to": "view-groups",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-groups-evt-join-code-set",
-      "from": "evt-join-code-set",
-      "to": "view-groups",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-groups-scr-study-group",
-      "from": "view-groups",
-      "to": "scr-study-group",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-groups-scr-mobile-study-groups",
-      "from": "view-groups",
-      "to": "scr-mobile-study-groups",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-memberships-evt-member-joined",
-      "from": "evt-member-joined",
-      "to": "view-memberships",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-memberships-evt-member-left",
-      "from": "evt-member-left",
-      "to": "view-memberships",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-memberships-scr-study-group",
-      "from": "view-memberships",
-      "to": "scr-study-group",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-memberships-scr-join-group",
-      "from": "view-memberships",
-      "to": "scr-join-group",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-memberships-scr-mobile-join-group",
-      "from": "view-memberships",
-      "to": "scr-mobile-join-group",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-joint-sessions-evt-joint-opened",
-      "from": "evt-joint-opened",
-      "to": "view-joint-sessions",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-joint-sessions-evt-joint-closed",
-      "from": "evt-joint-closed",
-      "to": "view-joint-sessions",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-joint-sessions-scr-study-group",
-      "from": "view-joint-sessions",
-      "to": "scr-study-group",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-joint-sessions-scr-joint-exam",
-      "from": "view-joint-sessions",
-      "to": "scr-joint-exam",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-joint-sessions-scr-mobile-study-groups",
-      "from": "view-joint-sessions",
-      "to": "scr-mobile-study-groups",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-update-view-flags-evt-flag-imported",
-      "from": "evt-flag-imported",
-      "to": "view-flags",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-flags-evt-flag-raised",
-      "from": "evt-flag-raised",
-      "to": "view-flags",
-      "rel": "updates"
-    },
-    {
-      "id": "em-update-view-flags-evt-flag-resolved",
-      "from": "evt-flag-resolved",
-      "to": "view-flags",
-      "rel": "updates"
-    },
-    {
-      "id": "em-render-view-flags-scr-me-hub",
-      "from": "view-flags",
-      "to": "scr-me-hub",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-flags-scr-mobile-practice",
-      "from": "view-flags",
-      "to": "scr-mobile-practice",
-      "rel": "rendersOn"
-    },
-    {
-      "id": "em-render-view-flags-scr-settings-admin",
-      "from": "view-flags",
-      "to": "scr-settings-admin",
-      "rel": "rendersOn"
+      "id": "em-observe-data-table-initiated-license-purchases-auto-subscription-charge",
+      "from": "data-table-initiated-license-purchases",
+      "to": "auto-subscription-charge",
+      "rel": "observes"
     }
   ]
 }

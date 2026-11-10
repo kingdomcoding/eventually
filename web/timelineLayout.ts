@@ -62,7 +62,7 @@ function buildTimelineStreamRows(doc: BlueprintDocument): StreamRow[] {
       if (lane) {
         rows.push({
           id: lane.id,
-          name: "Commands · Views",
+          name: "Commands · Data Tables",
           band: lane.band,
           order: lane.order,
           y,
@@ -82,9 +82,51 @@ function producingCommand(doc: BlueprintDocument, eventId: string) {
   return doc.nodes.find((n) => n.type === "command" && n.produces.includes(eventId));
 }
 
-function anchorEventForView(
+function commandIssuedFromScreen(
   doc: BlueprintDocument,
-  view: BlueprintNode & { type: "view" },
+  screen: BlueprintNode & { type: "screen" },
+): string | undefined {
+  for (const n of doc.nodes) {
+    if (n.type !== "trigger" || !n.parents?.includes(screen.name)) continue;
+    const issue = doc.edges.find((e) => e.rel === "issues" && e.from === n.id);
+    if (issue) return issue.to;
+  }
+  return doc.edges.find((e) => e.rel === "issues" && e.from === screen.id)?.to;
+}
+
+/** Tables that feed a trigger issuing this command — sit immediately before it (e.g. Open Cohort Windows → Available License Cards). */
+function catalogViewsBeforeCommand(
+  doc: BlueprintDocument,
+  commandId: string,
+): Array<BlueprintNode & { type: "dataTable" }> {
+  const out: Array<BlueprintNode & { type: "dataTable" }> = [];
+  for (const view of doc.nodes) {
+    if (view.type !== "dataTable") continue;
+    const feedsTrigger = doc.edges.some((e) => {
+      if (e.rel !== "rendersOn" || e.from !== view.id) return false;
+      const target = doc.nodes.find((n) => n.id === e.to);
+      if (target?.type !== "trigger") return false;
+      return doc.edges.some(
+        (issue) => issue.rel === "issues" && issue.from === target.id && issue.to === commandId,
+      );
+    });
+    if (feedsTrigger) out.push(view);
+  }
+  return out;
+}
+
+function viewsPrecedingAnyCommand(doc: BlueprintDocument): Set<string> {
+  const ids = new Set<string>();
+  for (const n of doc.nodes) {
+    if (n.type !== "command") continue;
+    for (const view of catalogViewsBeforeCommand(doc, n.id)) ids.add(view.id);
+  }
+  return ids;
+}
+
+function anchorEventForDataTable(
+  doc: BlueprintDocument,
+  view: BlueprintNode & { type: "dataTable" },
   events: Array<BlueprintNode & { type: "event" }>,
 ): (BlueprintNode & { type: "event" }) | undefined {
   const candidates = view.fedBy
@@ -94,6 +136,28 @@ function anchorEventForView(
   return candidates.sort(
     (a, b) => storyIndexForEvent(doc, b.id) - storyIndexForEvent(doc, a.id),
   )[0];
+}
+
+function storyIndexForCatalogView(
+  doc: BlueprintDocument,
+  view: BlueprintNode & { type: "dataTable" },
+  events: Array<BlueprintNode & { type: "event" }>,
+): number | undefined {
+  for (const edge of doc.edges) {
+    if (edge.rel !== "rendersOn" || edge.from !== view.id) continue;
+    const target = doc.nodes.find((n) => n.id === edge.to);
+    let cmdId: string | undefined;
+    if (target?.type === "trigger") {
+      cmdId = doc.edges.find((e) => e.rel === "issues" && e.from === target.id)?.to;
+    } else if (target?.type === "screen") {
+      cmdId = commandIssuedFromScreen(doc, target);
+    }
+    const cmd = cmdId ? doc.nodes.find((n) => n.id === cmdId && n.type === "command") : undefined;
+    const evtId = cmd?.type === "command" ? cmd.produces[0] : undefined;
+    const evt = evtId ? events.find((e) => e.id === evtId) : undefined;
+    if (evt) return storyIndexForEvent(doc, evt.id);
+  }
+  return undefined;
 }
 
 function columnContentWidthAtStoryIndex(
@@ -107,11 +171,14 @@ function columnContentWidthAtStoryIndex(
 
   for (const event of events) {
     if (storyIndexForEvent(doc, event.id) !== storyIndex) continue;
+    const cmd = producingCommand(doc, event.id);
+    const pre = cmd ? catalogViewsBeforeCommand(doc, cmd.id) : [];
     const fan = viewsByAnchor.get(event.id) ?? [];
-    if (fan.length) {
-      const span = NODE_W + GAP_AFTER_COMMAND + fan.length * (NODE_W + GAP_AFTER_COMMAND);
-      need = Math.max(need, span);
-    }
+    const span =
+      pre.length * (NODE_W + GAP_AFTER_COMMAND) +
+      NODE_W +
+      (fan.length ? GAP_AFTER_COMMAND + fan.length * (NODE_W + GAP_AFTER_COMMAND) : 0);
+    need = Math.max(need, span);
   }
 
   const stack = maxScreensAtSi.get(storyIndex) ?? 0;
@@ -161,10 +228,12 @@ function screenStoryIndex(
   }
   const render = doc.edges.find((e) => e.rel === "rendersOn" && e.to === n.id);
   if (render) {
-    const view = doc.nodes.find((x) => x.id === render.from && x.type === "view");
-    if (view?.type === "view") {
-      const anchor = anchorEventForView(doc, view, events);
-      return anchor ? storyIndexForEvent(doc, anchor.id) : 0;
+    const view = doc.nodes.find((x) => x.id === render.from && x.type === "dataTable");
+    if (view?.type === "dataTable") {
+      const anchor = anchorEventForDataTable(doc, view, events);
+      if (anchor) return storyIndexForEvent(doc, anchor.id);
+      const catalogSi = storyIndexForCatalogView(doc, view, events);
+      if (catalogSi !== undefined) return catalogSi;
     }
   }
   const inSlice = doc.nodes.filter((x) => x.sliceId === n.sliceId);
@@ -174,8 +243,8 @@ function screenStoryIndex(
   // Modality-only slices (e.g. Paystack checkout) may have views/screens but no events.
   // Anchor UI to the view's fedBy event, or to a sibling screen that renders a view.
   for (const sibling of inSlice) {
-    if (sibling.type === "view") {
-      const anchor = anchorEventForView(doc, sibling, events);
+    if (sibling.type === "dataTable") {
+      const anchor = anchorEventForDataTable(doc, sibling, events);
       if (anchor) return storyIndexForEvent(doc, anchor.id);
     }
   }
@@ -183,9 +252,9 @@ function screenStoryIndex(
     if (sibling.type !== "screen") continue;
     const siblingRender = doc.edges.find((e) => e.rel === "rendersOn" && e.to === sibling.id);
     if (!siblingRender) continue;
-    const view = doc.nodes.find((x) => x.id === siblingRender.from && x.type === "view");
-    if (view?.type === "view") {
-      const anchor = anchorEventForView(doc, view, events);
+    const view = doc.nodes.find((x) => x.id === siblingRender.from && x.type === "dataTable");
+    if (view?.type === "dataTable") {
+      const anchor = anchorEventForDataTable(doc, view, events);
       if (anchor) return storyIndexForEvent(doc, anchor.id);
     }
   }
@@ -220,12 +289,15 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
   );
 
   const views = doc.nodes.filter(
-    (n): n is BlueprintNode & { type: "view" } => n.type === "view",
+    (n): n is BlueprintNode & { type: "dataTable" } => n.type === "dataTable",
   );
 
+  const precedingViewIds = viewsPrecedingAnyCommand(doc);
   const viewsByAnchor = new Map<string, BlueprintNode[]>();
   for (const view of views) {
-    const anchor = anchorEventForView(doc, view, events);
+    // UI-fed tables sit before their command; don't also fan them after a fedBy event.
+    if (precedingViewIds.has(view.id)) continue;
+    const anchor = anchorEventForDataTable(doc, view, events);
     const key = anchor?.id ?? "orphan";
     if (!viewsByAnchor.has(key)) viewsByAnchor.set(key, []);
     viewsByAnchor.get(key)!.push(view);
@@ -248,18 +320,30 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
     positions.set(id, { x: baseX + idx * SCREEN_STAGGER_X, y: yForLaneRow(screensRowY) });
   }
 
+  const placedCatalogIds = new Set<string>();
+
   for (const event of events) {
     const si = storyIndexForEvent(doc, event.id);
     const anchorX = xAtStory(si);
     const cmd = producingCommand(doc, event.id);
+    const pre = cmd ? catalogViewsBeforeCommand(doc, cmd.id) : [];
 
+    pre.forEach((view, i) => {
+      positions.set(view.id, {
+        x: anchorX + i * (NODE_W + GAP_AFTER_COMMAND),
+        y: yMidPlaced,
+      });
+      placedCatalogIds.add(view.id);
+    });
+
+    const cmdX = anchorX + pre.length * (NODE_W + GAP_AFTER_COMMAND);
     if (cmd) {
-      positions.set(cmd.id, { x: anchorX, y: yMidPlaced });
+      positions.set(cmd.id, { x: cmdX, y: yMidPlaced });
     }
-    positions.set(event.id, { x: anchorX, y: yEventPlaced });
+    positions.set(event.id, { x: cmdX, y: yEventPlaced });
 
     const fan = viewsByAnchor.get(event.id) ?? [];
-    const viewStartX = anchorX + NODE_W + GAP_AFTER_COMMAND;
+    const viewStartX = cmdX + NODE_W + GAP_AFTER_COMMAND;
     fan.forEach((view, i) => {
       positions.set(view.id, {
         x: viewStartX + i * (NODE_W + GAP_AFTER_COMMAND),
@@ -269,8 +353,20 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
   }
 
   for (const view of viewsByAnchor.get("orphan") ?? []) {
+    if (placedCatalogIds.has(view.id)) continue;
+    const catalogSi = storyIndexForCatalogView(doc, view, events);
+    if (catalogSi !== undefined) {
+      positions.set(view.id, {
+        x: xAtStory(catalogSi),
+        y: yMidPlaced,
+      });
+      continue;
+    }
     positions.set(view.id, { x: xAtStory(0) + NODE_W + GAP_AFTER_COMMAND, y: yMidPlaced });
   }
+
+  /** Screens that only receive redirects (no issues) — place after redirect sources. */
+  const redirectLandingUi: BlueprintNode[] = [];
 
   for (const n of doc.nodes) {
     if (n.layout) {
@@ -297,9 +393,14 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
         placeScreen(n.id, viewPos?.x ?? xAtStory(0), si);
         continue;
       }
+      const isRedirectLanding = doc.edges.some((e) => e.rel === "redirectsTo" && e.to === n.id);
+      if (isRedirectLanding) {
+        redirectLandingUi.push(n);
+        continue;
+      }
       // Orphan UI in a modality slice: sit with the slice's view (payment page column).
       const viewInSlice = doc.nodes.find(
-        (x) => x.sliceId === n.sliceId && x.type === "view",
+        (x) => x.sliceId === n.sliceId && x.type === "dataTable",
       );
       const si = screenStoryIndex(doc, n, events);
       if (viewInSlice) {
@@ -309,6 +410,17 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
       }
       placeScreen(n.id, xAtStory(si), si);
     }
+  }
+
+  for (const n of redirectLandingUi) {
+    const sources = doc.edges.filter((e) => e.rel === "redirectsTo" && e.to === n.id);
+    let maxSourceX = 0;
+    for (const edge of sources) {
+      const sourcePos = positions.get(edge.from);
+      if (sourcePos) maxSourceX = Math.max(maxSourceX, sourcePos.x);
+    }
+    const si = screenStoryIndex(doc, n, events);
+    placeScreen(n.id, maxSourceX + SCREEN_STAGGER_X, si);
   }
 
   return { positions, streamRows };

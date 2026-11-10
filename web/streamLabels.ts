@@ -2,7 +2,7 @@ import type { StreamBand } from "@schema/document.js";
 
 export const BAND_LABEL: Record<StreamBand, string> = {
   ui: "User categories",
-  commandView: "Commands · Views",
+  commandView: "Commands · Data Tables",
   events: "Streams",
 };
 

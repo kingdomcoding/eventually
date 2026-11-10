@@ -59,17 +59,17 @@ export const CommandNodeSchema = NodeBase.extend({
   apiClientResponse: z.array(ApiClientResponseCaseSchema).optional(),
 });
 
-export const ViewNodeSchema = NodeBase.extend({
-  type: z.literal("view"),
+export const DataTableNodeSchema = NodeBase.extend({
+  type: z.literal("dataTable"),
   fields: z.array(FieldSpecSchema),
-  /** Events that feed this projection. */
-  fedBy: z.array(z.string().min(1)).min(1),
+  /** Events that feed this projection. Empty for external/catalog tables. */
+  fedBy: z.array(z.string().min(1)).default([]),
 });
 
-/** Background processor (event-modeling gear): watches a view and issues commands. */
+/** Background processor (event-modeling gear): watches a data table and issues commands. */
 export const AutomationNodeSchema = NodeBase.extend({
   type: z.literal("automation"),
-  /** View ids this processor watches. */
+  /** Data table ids this processor watches. */
   observes: z.array(z.string().min(1)).default([]),
 });
 
@@ -79,11 +79,13 @@ export const TriggerNodeSchema = NodeBase.extend({
   actor: z.string().min(1),
   /** Prototype field list for the control (e.g. button inputs). Same shape as event fields. */
   fields: z.array(EventFieldSchema).optional(),
-  /** Hosted outside the product (e.g. Paystack checkout). Shown with an External badge. */
+  /** Hosted outside the product (e.g. Paystack checkout). Kind label: External Web Page. */
   external: z.boolean().optional(),
+  /** Paystack (or similar) auto-redirect URL. Kind label: Auto-Redirect URL. */
+  autoRedirect: z.boolean().optional(),
   /**
    * Screen/page names this control sits on (display names).
-   * Array so a component can belong to multiple pages later.
+   * Grouped with the sticky kind in the header band. Array so a component can belong to multiple pages later.
    */
   parents: z.array(z.string().min(1)).optional(),
 });
@@ -91,13 +93,13 @@ export const TriggerNodeSchema = NodeBase.extend({
 export const ScreenNodeSchema = NodeBase.extend({
   type: z.literal("screen"),
   actor: z.string().min(1),
-  /** Bind UI fields to command inputs or view fields. */
+  /** Bind UI fields to command inputs or data-table fields. */
   bindings: z.array(
     z.object({
       uiField: z.string().min(1),
       target: z.discriminatedUnion("kind", [
         z.object({ kind: z.literal("commandInput"), commandId: z.string(), field: z.string() }),
-        z.object({ kind: z.literal("viewField"), viewId: z.string(), field: z.string() }),
+        z.object({ kind: z.literal("dataTableField"), dataTableId: z.string(), field: z.string() }),
       ]),
     }),
   ),
@@ -107,7 +109,7 @@ export const ScreenNodeSchema = NodeBase.extend({
 export const BlueprintNodeSchema = z.discriminatedUnion("type", [
   EventNodeSchema,
   CommandNodeSchema,
-  ViewNodeSchema,
+  DataTableNodeSchema,
   ScreenNodeSchema,
   TriggerNodeSchema,
   AutomationNodeSchema,

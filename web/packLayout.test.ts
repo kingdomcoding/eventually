@@ -51,7 +51,7 @@ test("packLayout grows a lane when a card expands and shifts the lane below", ()
       },
       {
         id: "cmd",
-        name: "Commands · Views",
+        name: "Commands · Data Tables",
         band: "commandView" as const,
         order: 0,
         y: 48 + LANE_ROW_HEIGHT + BAND_GAP,

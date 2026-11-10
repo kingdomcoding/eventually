@@ -5,12 +5,13 @@ export const DETAIL_EDGE_RELS = new Set([
   "produces",
   "updates",
   "rendersOn",
+  "observes",
   "redirectsTo",
 ]);
 
 export type GraphIndex = {
   detailAdj: Map<string, Set<string>>;
-  viewFedBy: Map<string, string[]>;
+  dataTableFedBy: Map<string, string[]>;
 };
 
 let cache: { doc: BlueprintDocument; index: GraphIndex } | null = null;
@@ -31,12 +32,12 @@ export function getGraphIndex(doc: BlueprintDocument): GraphIndex {
     link(e.from, e.to);
   }
 
-  const viewFedBy = new Map<string, string[]>();
+  const dataTableFedBy = new Map<string, string[]>();
   for (const n of doc.nodes) {
-    if (n.type === "view") viewFedBy.set(n.id, [...n.fedBy]);
+    if (n.type === "dataTable") dataTableFedBy.set(n.id, [...n.fedBy]);
   }
 
-  const index = { detailAdj, viewFedBy };
+  const index = { detailAdj, dataTableFedBy };
   cache = { doc, index };
   return index;
 }
@@ -45,7 +46,7 @@ function nodeById(doc: BlueprintDocument, id: string) {
   return doc.nodes.find((n) => n.id === id);
 }
 
-/** Single-event display cluster (commands, views, screens for one event). */
+/** Single-event display cluster (commands, data tables, screens for one event). */
 export function eventDetailCluster(doc: BlueprintDocument, eventId: string): Set<string> {
   const ids = new Set<string>([eventId]);
 
@@ -58,19 +59,19 @@ export function eventDetailCluster(doc: BlueprintDocument, eventId: string): Set
   }
 
   for (const n of doc.nodes) {
-    if (n.type === "view" && n.fedBy.includes(eventId)) ids.add(n.id);
+    if (n.type === "dataTable" && n.fedBy.includes(eventId)) ids.add(n.id);
   }
 
   const commandIds = new Set(
     [...ids].filter((id) => doc.nodes.find((n) => n.id === id)?.type === "command"),
   );
-  const viewIds = new Set(
-    [...ids].filter((id) => doc.nodes.find((n) => n.id === id)?.type === "view"),
+  const dataTableIds = new Set(
+    [...ids].filter((id) => doc.nodes.find((n) => n.id === id)?.type === "dataTable"),
   );
 
   for (const e of doc.edges) {
     if (e.rel === "issues" && commandIds.has(e.to)) ids.add(e.from);
-    if (e.rel === "rendersOn" && viewIds.has(e.from)) ids.add(e.to);
+    if (e.rel === "rendersOn" && dataTableIds.has(e.from)) ids.add(e.to);
   }
 
   // Modality-only UI in the same slice (e.g. external Paystack Checkout Page)
@@ -99,20 +100,21 @@ function commandEmphasisClosure(doc: BlueprintDocument, commandId: string): Set<
   return ids;
 }
 
-function viewEmphasisClosure(doc: BlueprintDocument, viewId: string): Set<string> {
-  const ids = new Set<string>([viewId]);
-  const view = nodeById(doc, viewId);
-  if (view?.type === "view") {
+function dataTableEmphasisClosure(doc: BlueprintDocument, dataTableId: string): Set<string> {
+  const ids = new Set<string>([dataTableId]);
+  const view = nodeById(doc, dataTableId);
+  if (view?.type === "dataTable") {
     for (const eventId of view.fedBy) ids.add(eventId);
   }
   for (const e of doc.edges) {
-    if (e.rel === "updates" && e.to === viewId) ids.add(e.from);
-    if (e.rel === "rendersOn" && e.from === viewId) ids.add(e.to);
+    if (e.rel === "updates" && e.to === dataTableId) ids.add(e.from);
+    if (e.rel === "rendersOn" && e.from === dataTableId) ids.add(e.to);
+    if (e.rel === "observes" && e.from === dataTableId) ids.add(e.to);
   }
   return ids;
 }
 
-/** Screen focus: screen plus commands/views on it — no events. */
+/** Screen focus: screen plus commands/data tables on it — no events. */
 function screenEmphasisClosure(doc: BlueprintDocument, screenId: string): Set<string> {
   const ids = new Set<string>([screenId]);
   for (const e of doc.edges) {
@@ -136,8 +138,8 @@ export function focusEmphasisClosure(doc: BlueprintDocument, anchorId: string): 
       return eventDetailCluster(doc, anchorId);
     case "command":
       return commandEmphasisClosure(doc, anchorId);
-    case "view":
-      return viewEmphasisClosure(doc, anchorId);
+    case "dataTable":
+      return dataTableEmphasisClosure(doc, anchorId);
     case "screen":
     case "trigger":
       return screenEmphasisClosure(doc, anchorId);
@@ -166,8 +168,8 @@ function focusFitClosureFromEvent(doc: BlueprintDocument, eventId: string): Set<
     }
 
     const node = doc.nodes.find((n) => n.id === id);
-    if (node?.type === "view") {
-      for (const fedEventId of index.viewFedBy.get(id) ?? []) {
+    if (node?.type === "dataTable") {
+      for (const fedEventId of index.dataTableFedBy.get(id) ?? []) {
         if (!result.has(fedEventId)) queue.push(fedEventId);
       }
     }
@@ -184,7 +186,7 @@ export function focusFitClosure(doc: BlueprintDocument, anchorId: string): Set<s
   switch (node.type) {
     case "event":
       return focusFitClosureFromEvent(doc, anchorId);
-    case "view":
+    case "dataTable":
       return focusFitClosureFromEvent(doc, anchorId);
     case "command":
     case "screen":

@@ -10,7 +10,7 @@ export type { DiagramMode };
 
 export type FocusState = {
   diagramMode: DiagramMode;
-  /** When true, timeline layout is active but command/view/screen stack stays stream-hidden until morph ends. */
+  /** When true, timeline layout is active but command/data-table/screen stack stays stream-hidden until morph ends. */
   timelineStackDeferred?: boolean;
   showAll: boolean;
   focusAnchorId: string | null;
@@ -24,7 +24,7 @@ export type PreviewPhase = "idle" | "active" | "leaving";
 
 export type DisplayTier = "hidden" | "context" | "preview" | "full";
 
-const DETAIL_RELS = new Set(["issues", "produces", "updates", "rendersOn", "redirectsTo"]);
+const DETAIL_RELS = new Set(["issues", "produces", "updates", "rendersOn", "observes", "redirectsTo"]);
 
 export function connectedNodeIds(doc: BlueprintDocument, eventId: string): Set<string> {
   return eventDetailCluster(doc, eventId);

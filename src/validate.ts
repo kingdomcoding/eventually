@@ -188,13 +188,13 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
       }
     }
 
-    if (n.type === "view") {
+    if (n.type === "dataTable") {
       for (const eventId of n.fedBy) {
         const ev = byId.get(eventId);
         if (!ev || ev.type !== "event") {
           issues.push({
-            code: "view_fed_by_invalid",
-            message: `View "${n.name}" fedBy must reference event nodes`,
+            code: "data_table_fed_by_invalid",
+            message: `Data table "${n.name}" fedBy must reference event nodes`,
             nodeId: n.id,
           });
         }
@@ -213,12 +213,12 @@ export function validateBlueprint(doc: BlueprintDocument): ValidationIssue[] {
             });
           }
         }
-        if (b.target.kind === "viewField") {
-          const view = byId.get(b.target.viewId);
-          if (!view || view.type !== "view") {
+        if (b.target.kind === "dataTableField") {
+          const view = byId.get(b.target.dataTableId);
+          if (!view || view.type !== "dataTable") {
             issues.push({
-              code: "screen_binding_view",
-              message: `Screen "${n.name}" binds to missing view`,
+              code: "screen_binding_data_table",
+              message: `Screen "${n.name}" binds to missing data table`,
               nodeId: n.id,
             });
           }

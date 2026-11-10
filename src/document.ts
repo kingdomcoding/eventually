@@ -47,6 +47,6 @@ export const NODE_BAND: Record<string, StreamBand> = {
   trigger: "ui",
   automation: "ui",
   command: "commandView",
-  view: "commandView",
+  dataTable: "commandView",
   event: "events",
 };

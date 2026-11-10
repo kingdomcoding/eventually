@@ -16,7 +16,7 @@ export type CanvasIndex = {
   meta: BlueprintDocument["meta"];
   /** UI band: screens. */
   uiLayers: CanvasLayer[];
-  /** Timeline: events, commands, views ordered by timelineIndex where applicable. */
+  /** Timeline: events, commands, data tables ordered by timelineIndex where applicable. */
   timelineEvents: BlueprintNode[];
   edges: BlueprintDocument["edges"];
   nodesById: Record<string, BlueprintNode>;

@@ -26,6 +26,7 @@ test("valid chain on subscription stream", () => {
   const r = computeWorkflowPath(apex, "evt-trial-started", "evt-subscription-cancelled");
   assert.equal(r.status, "valid");
   if (r.status !== "valid") return;
+  // Trial → Activated → Updated → Cancelled (license purchase lives on Licensing).
   assert.equal(r.eventIds.size, 4);
   assert.equal(r.edgeIds.size, 3);
 });
@@ -72,7 +73,7 @@ test("invalid when end not reachable from start on same stream", () => {
 
 test("workflow labels include stream name", () => {
   const opts = listWorkflowEventOptions(apex);
-  assert.equal(opts.length, 33);
+  assert.equal(opts.length, 37); // includes Licensing context events
   assert.ok(opts.some((o) => o.label.includes("Subscription") && o.name === "Trial Started V1"));
 });
 
@@ -129,8 +130,7 @@ test("timeline path keeps external Paystack Checkout Page at full neighbor empha
     true,
     "edgeless external checkout must share slice emphasis with payment page",
   );
-  assert.equal(range.neighborIds.has("trg-success-page"), true);
-  assert.equal(range.neighborIds.has("trg-cancel-page"), true);
+  assert.equal(range.neighborIds.has("scr-transaction-status"), true);
 });
 
 test("timeline range is the narrative slice from start through end", () => {

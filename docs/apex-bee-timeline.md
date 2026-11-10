@@ -8,7 +8,7 @@
 |------|-----------|----------|
 | **ui** | Web, Mobile app, Ops & system | LiveView routes and mobile API surfaces |
 | **commandView** | Commands | Ash command resources (`RegisterDevice`, `SubmitExam`, …) |
-| **events** | Eight EventStore streams (unchanged) | `*V1` domain events |
+| **events** | Eight EventStore streams (unchanged) | `*V1` context events |
 
 Timeline stack ends at the **events** spine (no band below).
 
