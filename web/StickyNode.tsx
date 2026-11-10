@@ -357,6 +357,24 @@ function StickySections({
   );
 }
 
+/** Split "Location:" / "Locations:" / "For:" from the value so only the prefix is weak italic. */
+function splitMetaPrefix(label: string): { prefix: string; value: string } | null {
+  const match = /^(Locations?|For):\s*(.+)$/.exec(label);
+  if (!match) return null;
+  return { prefix: `${match[1]}:`, value: match[2] };
+}
+
+function MetaPrefixLine({ label, className }: { label: string; className: string }) {
+  const parts = splitMetaPrefix(label);
+  if (!parts) return <div className={className}>{label}</div>;
+  return (
+    <div className={className}>
+      <span className="sticky-meta-prefix">{parts.prefix} </span>
+      <span className="sticky-meta-value">{parts.value}</span>
+    </div>
+  );
+}
+
 function StickyNodeComponent({ id, data }: NodeProps) {
   const d = data as StickyData;
   const tier = d.displayTier ?? "full";
@@ -451,13 +469,19 @@ function StickyNodeComponent({ id, data }: NodeProps) {
           </div>
           {contextInHeader ? <div className="sticky-parents">{d.laneLabel}</div> : null}
           {automationWhoLabel ? <div className="sticky-lane">{automationWhoLabel}</div> : null}
-          {parentsLabel ? <div className={parentsClass}>{parentsLabel}</div> : null}
+          {parentsLabel ? (
+            isTriggerUi ? (
+              <MetaPrefixLine className={parentsClass} label={parentsLabel} />
+            ) : (
+              <div className={parentsClass}>{parentsLabel}</div>
+            )
+          ) : null}
         </div>
         <div className="name">{d.name}</div>
         {dataTableMetaBelow ? (
           <div className={dataTableMetaClass}>
             {d.contextLabel ? (
-              <div className="sticky-data-table-context">{d.contextLabel}</div>
+              <MetaPrefixLine className="sticky-data-table-context" label={d.contextLabel} />
             ) : null}
             {d.whoLabel ? <div className="sticky-parents">{d.whoLabel}</div> : null}
           </div>

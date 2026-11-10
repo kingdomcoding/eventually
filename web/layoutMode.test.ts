@@ -644,12 +644,22 @@ test("Location (parent) and Context share quieter meta style vs Who lane, except
   assert.match(laneBlock, /font-weight:\s*600/);
   assert.match(laneBlock, /opacity:\s*0\.82/);
   assert.doesNotMatch(laneBlock, /font-style:\s*italic/);
+  // Location and For: prefix weak italic; value bold and upright.
   const forBlock = cssSrc.match(/\.sticky-data-table-context\s*\{[^}]+\}/s)?.[0] ?? "";
-  assert.match(triggerLocationBlock, /font-weight:\s*500/);
-  assert.match(triggerLocationBlock, /font-style:\s*italic/);
+  const prefixBlock = cssSrc.match(/\.sticky-meta-prefix\s*\{[^}]+\}/s)?.[0] ?? "";
+  const valueBlock = cssSrc.match(/\.sticky-meta-value\s*\{[^}]+\}/s)?.[0] ?? "";
+  assert.match(triggerLocationBlock, /font-weight:\s*800/);
+  assert.match(triggerLocationBlock, /font-style:\s*normal/);
   assert.match(triggerLocationBlock, /opacity:\s*1/);
-  assert.match(forBlock, /font-weight:\s*500/);
-  assert.match(forBlock, /font-style:\s*italic/);
+  assert.match(forBlock, /font-weight:\s*800/);
+  assert.match(forBlock, /font-style:\s*normal/);
+  assert.match(prefixBlock, /font-weight:\s*500/);
+  assert.match(prefixBlock, /font-style:\s*italic/);
+  assert.match(prefixBlock, /opacity:\s*0\.62/);
+  assert.match(valueBlock, /font-weight:\s*800/);
+  assert.match(valueBlock, /font-style:\s*normal/);
+  assert.match(stickySrc, /sticky-meta-prefix/);
+  assert.match(stickySrc, /sticky-meta-value/);
   assert.match(stickySrc, /isTriggerUi \? "sticky-trigger-location" : "sticky-parents"/);
   assert.match(stickySrc, /isTriggerUi \? "sticky-parents" : "sticky-lane"/);
   // Context on commands/events reuses Location's sticky-parents class in the header.

@@ -938,12 +938,12 @@ body,
   margin-top: 0.4rem;
 }
 
-/* Triggers/screens: Location line. Prefix/value split comes later. */
+/* Triggers/screens: Location value stays bold; only the prefix is weak italic. */
 .sticky-trigger-location {
   margin: 0;
   font-size: 0.68rem;
-  font-weight: 500;
-  font-style: italic;
+  font-weight: 800;
+  font-style: normal;
   letter-spacing: 0.02em;
   line-height: 1.25;
   opacity: 1;
@@ -962,16 +962,28 @@ body,
   margin-bottom: 0;
 }
 
-/* For: on data tables. Prefix/value split comes later. */
+/* For: on data tables: value stays bold; only the prefix is weak italic. */
 .sticky-data-table-context {
   margin: 0;
   font-size: 0.68rem;
-  font-weight: 500;
-  font-style: italic;
+  font-weight: 800;
+  font-style: normal;
   letter-spacing: 0.02em;
   line-height: 1.25;
   opacity: 1;
   color: inherit;
+}
+
+/* Same visual weight as the Who line (sticky-parents): light italic, faded. Colon included. */
+.sticky-meta-prefix {
+  font-weight: 500;
+  font-style: italic;
+  opacity: 0.62;
+}
+
+.sticky-meta-value {
+  font-weight: 800;
+  font-style: normal;
 }
 
 .sticky.automation {
