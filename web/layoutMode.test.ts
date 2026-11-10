@@ -283,7 +283,12 @@ test("apex timeline places external Paystack checkout with the payment page colu
   assert.deepEqual(availableLicenseCards.parents, ["License Purchase Page"]);
   assert.deepEqual(
     availableLicenseCards.fields?.map((f) => f.name),
-    ["cohort_window_id", "name", "price"],
+    ["cohort_window_id", "name"],
+  );
+  assert.equal(
+    availableLicenseCards.fields?.some((f) => f.name === "price"),
+    false,
+    "Available License Cards does not show price",
   );
   assert.notEqual(
     availableLicenseCards.sliceId,

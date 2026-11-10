@@ -800,11 +800,6 @@ const triggers = [
         type: "string",
         description: "Display name of the open cohort window.",
       },
-      {
-        name: "price",
-        type: "integer",
-        description: "Price in cobalt for licenses in this cohort window.",
-      },
     ],
   },
   {
