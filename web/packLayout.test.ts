@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { BAND_GAP, LANE_ROW_HEIGHT, NODE_H, NODE_W } from "./layoutMetrics.js";
+import { BAND_GAP, INTER_COL_GAP, LANE_ROW_HEIGHT, NODE_H, NODE_W } from "./layoutMetrics.js";
 import { assignNodesToRows, packLayout } from "./packLayout.js";
 
 test("packLayout leaves default-sized cards on the base lane geometry", () => {
@@ -117,6 +117,59 @@ test("packLayout pushes overlapping cards apart horizontally in the same lane", 
   const a = packed.positions.get("a")!;
   const b = packed.positions.get("b")!;
   assert.ok(b.x >= a.x + 200, "second card shifts right of the wide first card");
+});
+
+test("packLayout centers a stack and keeps the next column clear of the wider card", () => {
+  const uiY = 48 + (LANE_ROW_HEIGHT - NODE_H) / 2;
+  const eventY = 48 + LANE_ROW_HEIGHT + BAND_GAP + (LANE_ROW_HEIGHT - NODE_H) / 2;
+  const base = {
+    streamRows: [
+      {
+        id: "ui",
+        name: "Triggers",
+        band: "ui" as const,
+        order: 0,
+        y: 48,
+        yLine: 48 + LANE_ROW_HEIGHT,
+        height: LANE_ROW_HEIGHT,
+      },
+      {
+        id: "events",
+        name: "Events",
+        band: "events" as const,
+        order: 0,
+        y: 48 + LANE_ROW_HEIGHT + BAND_GAP,
+        yLine: 48 + 2 * LANE_ROW_HEIGHT + BAND_GAP,
+        height: LANE_ROW_HEIGHT,
+      },
+    ],
+    positions: new Map([
+      ["wide", { x: 100, y: uiY }],
+      ["under", { x: 100, y: eventY }],
+      ["besideWide", { x: 280, y: uiY }],
+      ["besideUnder", { x: 280, y: eventY }],
+    ]),
+  };
+  const packed = packLayout(
+    base,
+    new Map([
+      ["wide", { width: 400, height: NODE_H }],
+      ["under", { width: 120, height: NODE_H }],
+      ["besideWide", { width: 150, height: NODE_H }],
+      ["besideUnder", { width: 150, height: NODE_H }],
+    ]),
+  );
+  const wide = packed.positions.get("wide")!;
+  const under = packed.positions.get("under")!;
+  const besideWide = packed.positions.get("besideWide")!;
+  const besideUnder = packed.positions.get("besideUnder")!;
+  assert.equal(wide.x + 200, under.x + 60, "stack shares the wider card's center");
+  assert.ok(
+    besideUnder.x >= wide.x + 400 + INTER_COL_GAP - 0.01,
+    "neighbor below must clear the wider card's real right edge",
+  );
+  assert.ok(besideWide.x >= wide.x + 400 + INTER_COL_GAP - 0.01);
+  assert.equal(besideWide.x, besideUnder.x);
 });
 
 test("assignNodesToRows picks the nearest lane mid", () => {

@@ -2,15 +2,16 @@ import { MarkerType, type Edge } from "@xyflow/react";
 import type { BlueprintDocument } from "@schema/document.js";
 import { NODE_W, type NodePosition } from "./layout.js";
 
-const REL_STROKE: Record<string, string> = {
-  issues: "#9eb4cc",
-  produces: "#5ba3e8",
-  updates: "#6fd06f",
-  rendersOn: "#9eb4cc",
-  observes: "#9eb4cc",
-  redirectsTo: "#8fa3bc",
-  ordersBefore: "#f5c542",
-  loopsBack: "#b88cff",
+/** Face color of each sticky, so an arrow can match the element it leaves. */
+const TRIGGER_FACE = "#e7eef6";
+
+export const SOURCE_STROKE: Record<string, string> = {
+  event: "#f8d04d",
+  command: "#5ba3e8",
+  dataTable: "#6fd06f",
+  screen: "#f4f6fa",
+  trigger: TRIGGER_FACE,
+  automation: TRIGGER_FACE,
 };
 
 const REL_LABEL: Record<string, string> = {
@@ -80,7 +81,8 @@ export function buildEdges(
 
     const label = REL_LABEL[e.rel];
     const isRedirect = e.rel === "redirectsTo";
-    const stroke = REL_STROKE[e.rel] ?? "#5a6a7a";
+    const sourceType = doc.nodes.find((n) => n.id === e.from)?.type;
+    const stroke = (sourceType && SOURCE_STROKE[sourceType]) || "#5a6a7a";
 
     return {
       id: e.id,

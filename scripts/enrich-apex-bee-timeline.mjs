@@ -15,12 +15,11 @@ const doc = JSON.parse(readFileSync(path, "utf8"));
 const EXTRA_STREAMS = [
   { id: "lane-visitor", name: "Visitor", band: "ui", order: 0 },
   { id: "lane-authenticated-learner", name: "Authenticated Learner", band: "ui", order: 1 },
-  { id: "lane-license-purchase-process-manager", name: "License Purchase Process Manager", band: "ui", order: 2 },
-  { id: "lane-subscriber", name: "Subscriber", band: "ui", order: 3 },
-  { id: "lane-group-member", name: "Group member", band: "ui", order: 4 },
-  { id: "lane-group-host", name: "Group host", band: "ui", order: 5 },
-  { id: "lane-marketing-lead", name: "Marketing lead", band: "ui", order: 6 },
-  { id: "lane-product-admin", name: "Product admin", band: "ui", order: 7 },
+  { id: "lane-subscriber", name: "Subscriber", band: "ui", order: 2 },
+  { id: "lane-group-member", name: "Group member", band: "ui", order: 3 },
+  { id: "lane-group-host", name: "Group host", band: "ui", order: 4 },
+  { id: "lane-marketing-lead", name: "Marketing lead", band: "ui", order: 5 },
+  { id: "lane-product-admin", name: "Product admin", band: "ui", order: 6 },
   { id: "lane-writes", name: "Commands", band: "commandView", order: 0 },
 ];
 
@@ -31,6 +30,11 @@ const COMMAND_FOR_EVENT = {
   "evt-device-revoked": { cmdId: "cmd-revoke-device", cmdName: "Revoke Device", slice: "slice-auth" },
   "evt-entitlement-imported": { cmdId: "cmd-import-entitlement", cmdName: "Import Entitlement", slice: "slice-ops" },
   "evt-trial-started": { cmdId: "cmd-start-trial", cmdName: "Start Trial", slice: "slice-auth" },
+  "evt-cohort-window-opened": {
+    cmdId: "cmd-open-cohort-window",
+    cmdName: "Open Cohort Window",
+    slice: "slice-billing",
+  },
   "evt-license-purchase-initiated": {
     cmdId: "cmd-initiate-license-purchase",
     cmdName: "Initiate License Purchase",
@@ -303,12 +307,16 @@ const AUTOMATIONS = [
   },
   {
     id: "auto-subscription-charge",
-    name: "Trigger Paystack Payment",
-    lane: "lane-license-purchase-process-manager",
+    name: "Paystack Payment Initiator",
+    lane: "lane-authenticated-learner",
     slice: "slice-billing",
-    observes: ["data-table-initiated-license-purchases"],
+    observes: [
+      "data-table-initiated-license-purchases",
+      "data-table-registered-emails",
+      "data-table-cohort-window-prices",
+    ],
     notes:
-      "Watches Initiated License Purchases and issues Initiate Single Charge to start Paystack checkout",
+      "Watches Initiated License Purchases, Registered Emails, and Cohort Window Prices, and issues Initiate Single Charge to start Paystack checkout",
   },
   {
     id: "auto-paystack-webhook",
@@ -379,6 +387,93 @@ const DATA_TABLES = [
     slice: "slice-billing",
     fedBy: ["evt-license-purchase-initiated"],
     rendersOn: [],
+    fields: [
+      {
+        name: "license_purchase_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-license-purchase-initiated",
+          field: "license_purchase_id",
+        },
+      },
+      {
+        name: "user_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-license-purchase-initiated",
+          field: "user_id",
+        },
+      },
+      {
+        name: "cohort_window_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-license-purchase-initiated",
+          field: "cohort_window_id",
+        },
+      },
+    ],
+  },
+  {
+    id: "data-table-registered-emails",
+    name: "Registered Emails",
+    slice: "slice-billing",
+    fedBy: ["evt-user-registered"],
+    rendersOn: [],
+    fields: [
+      {
+        name: "user_id",
+        type: "uuid",
+        optional: false,
+        source: { kind: "fromEvent", eventId: "evt-user-registered", field: "user_id" },
+      },
+      {
+        name: "email",
+        type: "string",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-user-registered",
+          field: "email",
+          note: "Decrypted from the hashed email.",
+        },
+      },
+    ],
+  },
+  {
+    id: "data-table-cohort-window-prices",
+    name: "Cohort Window Prices",
+    slice: "slice-billing",
+    fedBy: ["evt-cohort-window-opened"],
+    rendersOn: [],
+    fields: [
+      {
+        name: "cohort_window_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "cohort_window_id",
+        },
+      },
+      {
+        name: "price_in_kobo",
+        type: "integer",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "price_in_kobo",
+        },
+      },
+    ],
   },
   {
     id: "data-table-payments",
@@ -420,13 +515,62 @@ const DATA_TABLES = [
         },
       },
       {
-        name: "price",
+        name: "price_in_kobo",
         type: "integer",
         optional: false,
         source: {
           kind: "fromEvent",
           eventId: "evt-cohort-window-opened",
-          field: "price",
+          field: "price_in_kobo",
+        },
+      },
+    ],
+  },
+  {
+    id: "data-table-open-windows",
+    name: "Open Windows",
+    slice: "slice-billing",
+    fedBy: ["evt-cohort-window-opened"],
+    rendersOn: ["trg-open-window-list"],
+    fields: [
+      {
+        name: "cohort_window_id",
+        type: "uuid",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "cohort_window_id",
+        },
+      },
+      {
+        name: "program",
+        type: "atom",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "program",
+        },
+      },
+      {
+        name: "name",
+        type: "string",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "name",
+        },
+      },
+      {
+        name: "price_in_kobo",
+        type: "integer",
+        optional: false,
+        source: {
+          kind: "fromEvent",
+          eventId: "evt-cohort-window-opened",
+          field: "price_in_kobo",
         },
       },
     ],
@@ -529,6 +673,7 @@ const ISSUES = [
   ["scr-subscription", "cmd-initiate-payment"],
   ["scr-subscription", "cmd-cancel-subscription"],
   ["trg-license-checkout-modal", "cmd-initiate-license-purchase"],
+  ["trg-window-opening-form", "cmd-open-cohort-window"],
   ["auto-subscription-charge", "cmd-initiate-single-charge"],
   ["trg-auto-redirect-success", "cmd-record-customer-redirect-success"],
   ["trg-auto-redirect-failure", "cmd-record-customer-redirect-failure"],
@@ -595,6 +740,17 @@ for (const e of events) {
     e.fields = e.fields.filter((f) => f.name !== "transaction_id");
     e.fields.unshift(SINGLE_CHARGE_TRANSACTION_ID_FIELD);
   }
+  if (e.id === "evt-license-purchase-initiated") {
+    e.fields = Array.isArray(e.fields) ? e.fields : [];
+    if (!e.fields.some((f) => f.name === "payment_method")) {
+      e.fields.push({
+        name: "payment_method",
+        type: "atom",
+        description:
+          "Payment method collected from the learner when the license purchase was initiated. One of either Paystack or Monnify.",
+      });
+    }
+  }
 }
 
 const INITIATE_SINGLE_CHARGE_FIELDS = [
@@ -605,9 +761,38 @@ const INITIATE_SINGLE_CHARGE_FIELDS = [
       "User email for Paystack initialize (customer email required by Paystack).",
   },
   {
-    name: "amount",
+    name: "amount_in_kobo",
     type: "number",
     description: "Amount to be paid in kobo for Paystack initialize.",
+  },
+];
+
+const PAYSTACK_INITIALIZE_PRESENTED = [
+  {
+    name: "email",
+    type: "string",
+    description: "Derived directly from Registered Emails. Customer email for Paystack initialize. Required.",
+    category: "presented",
+  },
+  {
+    name: "amount_in_kobo",
+    type: "integer",
+    description: "Derived from the price_in_kobo field of Cohort Window Prices. Amount in the smallest currency unit (kobo for naira). Required.",
+    category: "presented",
+  },
+  {
+    name: "success_url",
+    type: "string",
+    description:
+      "Derived from the license purchase ID on Initiated License Purchases. Where Paystack sends the customer after payment. Sent to Paystack as callback_url.",
+    category: "presented",
+  },
+  {
+    name: "failure_url",
+    type: "string",
+    description:
+      "Derived from the same license purchase ID on Initiated License Purchases. Where Paystack sends the customer if they cancel. Sent inside metadata as cancel_action.",
+    category: "presented",
   },
 ];
 
@@ -698,10 +883,16 @@ for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
       meta.cmdId === "cmd-initiate-single-charge"
         ? [
             { name: "email", type: "string", optional: false, source: { kind: "user" } },
-            { name: "amount", type: "number", optional: false, source: { kind: "user" } },
+            { name: "amount_in_kobo", type: "number", optional: false, source: { kind: "user" } },
           ]
         : meta.cmdId === "cmd-initiate-license-purchase"
           ? [
+              {
+                name: "license_purchase_id",
+                type: "uuid",
+                optional: false,
+                source: { kind: "generated" },
+              },
               { name: "user_id", type: "uuid", optional: false, source: { kind: "user" } },
               {
                 name: "cohort_window_id",
@@ -709,8 +900,26 @@ for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
                 optional: false,
                 source: { kind: "user" },
               },
+              {
+                name: "payment_method",
+                type: "atom",
+                optional: false,
+                source: { kind: "user" },
+              },
             ]
-          : [],
+          : meta.cmdId === "cmd-open-cohort-window"
+            ? [
+                {
+                  name: "cohort_window_id",
+                  type: "uuid",
+                  optional: false,
+                  source: { kind: "generated" },
+                },
+                { name: "program", type: "atom", optional: false, source: { kind: "user" } },
+                { name: "name", type: "string", optional: false, source: { kind: "user" } },
+                { name: "price_in_kobo", type: "integer", optional: false, source: { kind: "user" } },
+              ]
+            : [],
     produces: [evtId],
     rejections: [],
     ...(evtId === "evt-member-left"
@@ -719,12 +928,16 @@ for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
     ...(meta.cmdId === "cmd-initiate-single-charge"
       ? {
           fields: INITIATE_SINGLE_CHARGE_FIELDS,
-          apiClientResponse: INITIATE_SINGLE_CHARGE_API,
         }
       : {}),
     ...(meta.cmdId === "cmd-initiate-license-purchase"
       ? {
           fields: [
+            {
+              name: "license_purchase_id",
+              type: "auto_generated_uuid",
+              description: "Auto-generated ID for this license purchase.",
+            },
             {
               name: "user_id",
               type: "uuid",
@@ -734,6 +947,39 @@ for (const [evtId, meta] of Object.entries(COMMAND_FOR_EVENT)) {
               name: "cohort_window_id",
               type: "uuid",
               description: "Cohort window ID for the license being purchased.",
+            },
+            {
+              name: "payment_method",
+              type: "atom",
+              description:
+                "Payment method collected from the learner at checkout. One of either Paystack or Monnify.",
+            },
+          ],
+        }
+      : {}),
+    ...(meta.cmdId === "cmd-open-cohort-window"
+      ? {
+          fields: [
+            {
+              name: "cohort_window_id",
+              type: "auto_generated_uuid",
+              description: "Auto-generated ID for this cohort window.",
+            },
+            {
+              name: "program",
+              type: "atom",
+              description:
+                "Program this window reflects. Atom. Current options are MMDP and Assistant Director, and it can be extended.",
+            },
+            {
+              name: "name",
+              type: "string",
+              description: "Display name of the cohort window.",
+            },
+            {
+              name: "price_in_kobo",
+              type: "integer",
+              description: "Price in cobalt for licenses in this cohort window.",
             },
           ],
         }
@@ -757,6 +1003,44 @@ const commands = [...commandsById.values()];
 const triggers = [
   {
     type: "trigger",
+    id: "trg-window-opening-form",
+    name: "Window Opening Form",
+    streamId: "lane-product-admin",
+    sliceId: "slice-billing",
+    actor: "Product admin",
+    parents: ["Cohort Window Page"],
+    fields: [
+      {
+        name: "program",
+        type: "atom",
+        description: "Program this window reflects. Atom. Current options are MMDP and Assistant Director, and it can be extended.",
+        category: "collected",
+      },
+      {
+        name: "name",
+        type: "string",
+        description: "Display name of the cohort window.",
+        category: "collected",
+      },
+      {
+        name: "price_in_kobo",
+        type: "integer",
+        description: "Price in cobalt for licenses in this cohort window.",
+        category: "collected",
+      },
+    ],
+  },
+  {
+    type: "trigger",
+    id: "trg-open-window-list",
+    name: "Open Window List",
+    streamId: "lane-product-admin",
+    sliceId: "slice-billing",
+    actor: "Product admin",
+    parents: ["Cohort Window Page"],
+  },
+  {
+    type: "trigger",
     id: "trg-license-checkout-modal",
     name: "License Checkout Modal",
     streamId: "lane-authenticated-learner",
@@ -768,16 +1052,33 @@ const triggers = [
         name: "cohort_window_id",
         type: "uuid",
         description: "ID of the cohort window being checked out.",
+        category: "presented",
       },
       {
         name: "name",
         type: "string",
         description: "Display name of the cohort window.",
+        category: "presented",
       },
       {
-        name: "price",
+        name: "price_in_kobo",
         type: "integer",
         description: "Price in cobalt for licenses in this cohort window.",
+        category: "presented",
+      },
+      {
+        name: "payment_method",
+        type: "atom",
+        description:
+          "Payment method collected from the learner at checkout. One of either Paystack or Monnify.",
+        category: "collected",
+      },
+      {
+        name: "user_id",
+        type: "uuid",
+        description:
+          "User ID of the learner checking out. Sourced from the signed-in session, not shown or entered on the modal.",
+        category: "metadata",
       },
     ],
   },
@@ -794,11 +1095,13 @@ const triggers = [
         name: "cohort_window_id",
         type: "uuid",
         description: "ID of the open cohort window shown on this card.",
+        category: "presented",
       },
       {
         name: "name",
         type: "string",
         description: "Display name of the open cohort window.",
+        category: "presented",
       },
     ],
   },
@@ -845,6 +1148,13 @@ const automations = AUTOMATIONS.map((a) => ({
   sliceId: a.slice,
   observes: a.observes,
   notes: a.notes,
+  ...(a.id === "auto-subscription-charge"
+    ? {
+        external: "Paystack's Initiate Payment API Endpoint",
+        fields: PAYSTACK_INITIALIZE_PRESENTED,
+        apiClientResponse: INITIATE_SINGLE_CHARGE_API,
+      }
+    : {}),
 }));
 
 const dataTables = DATA_TABLES.map((v) => ({
@@ -936,6 +1246,18 @@ emEdges.push({
 emEdges.push({
   id: "em-observe-data-table-initiated-license-purchases-auto-subscription-charge",
   from: "data-table-initiated-license-purchases",
+  to: "auto-subscription-charge",
+  rel: "observes",
+});
+emEdges.push({
+  id: "em-observe-data-table-registered-emails-auto-subscription-charge",
+  from: "data-table-registered-emails",
+  to: "auto-subscription-charge",
+  rel: "observes",
+});
+emEdges.push({
+  id: "em-observe-data-table-cohort-window-prices-auto-subscription-charge",
+  from: "data-table-cohort-window-prices",
   to: "auto-subscription-charge",
   rel: "observes",
 });

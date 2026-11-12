@@ -12,11 +12,41 @@ import {
 } from "lucide-react";
 import type { DisplayTier } from "./viewMode";
 
+export type TriggerFieldCategory = "presented" | "collected" | "metadata";
+
 export type StickyField = {
   name: string;
   type: string;
   description: string;
+  category?: TriggerFieldCategory;
 };
+
+const TRIGGER_FIELD_GROUP_ORDER: TriggerFieldCategory[] = ["presented", "collected", "metadata"];
+
+const TRIGGER_FIELD_GROUP_LABEL: Record<TriggerFieldCategory, string> = {
+  presented: "Data Presented",
+  collected: "Data Collected",
+  metadata: "Metadata",
+};
+
+export function formatTriggerFieldGroupLabel(category: TriggerFieldCategory): string {
+  return TRIGGER_FIELD_GROUP_LABEL[category];
+}
+
+/** Trigger fields grouped for display. Uncategorized fields stay under Fields. */
+export function groupTriggerFields(
+  fields: StickyField[],
+): { label: string; fields: StickyField[] }[] {
+  const groups = TRIGGER_FIELD_GROUP_ORDER.flatMap((category) => {
+    const grouped = fields.filter((field) => field.category === category);
+    return grouped.length
+      ? [{ label: formatTriggerFieldGroupLabel(category), fields: grouped }]
+      : [];
+  });
+  const uncategorized = fields.filter((field) => !field.category);
+  if (uncategorized.length) groups.push({ label: "Fields", fields: uncategorized });
+  return groups;
+}
 
 export type StickyApiCase = {
   label: string;
@@ -33,14 +63,17 @@ export type StickyData = {
    */
   laneLabel?: string;
   /**
-   * Data tables only: For: (consumer) then Who (actor lane), under the name.
-   * Prefer these over laneLabel when set.
+   * Data tables only: For: (consumer) under the name.
    */
   whoLabel?: string;
   contextLabel?: string;
+  /** Command/event: "Stream:" subtag under the name. */
+  streamTag?: string;
   fields?: StickyField[];
-  /** Command timeline: success/error shapes from the internal API client. */
+  /** Timeline: success/error shapes from an API client (command or automation). */
   apiClientResponse?: StickyApiCase[];
+  /** Automation: outside system called, shown as External: under the section line. */
+  externalName?: string;
   /** Report sticky box size so lane packing can clear expansions. */
   onMeasuredSize?: (nodeId: string, size: { width: number; height: number }) => void;
   isFocusAnchor?: boolean;
@@ -55,6 +88,11 @@ export type StickyData = {
   /** Screen/page names this control sits on; grouped with kind in the sticky header band. */
   parents?: string[];
 };
+
+/** Automation line under the section divider. Not a Who. */
+export function formatExternalLabel(name: string): string {
+  return `External: ${name}`;
+}
 
 /** Display label for sticky parent pages (prefix "Location"); singular for one, comma-separated for many. */
 export function formatParentsLabel(parents: string[]): string | null {
@@ -97,7 +135,7 @@ function isMobileUiName(name: string): boolean {
 
 /**
  * UI-band category for screen / trigger / automation stickies.
- * Singular taxonomy: web page, mobile app screen, element in/on…, external web page,
+ * Singular taxonomy: web page, mobile app screen, webpage components, element on mobile, external web page,
  * auto-redirect URL, automation.
  */
 export function formatUiCategoryLabel(source: StickyKindSource): string | undefined {
@@ -112,7 +150,7 @@ export function formatUiCategoryLabel(source: StickyKindSource): string | undefi
     if (parents && parents.length > 0) {
       const onMobile =
         isMobileUiName(name) || parents.every((p) => isMobileUiName(p));
-      return onMobile ? "Element On Mobile App" : "Element In Web Page";
+      return onMobile ? "Element On Mobile App" : "webpage components";
     }
     return "Web Page";
   }
@@ -132,7 +170,7 @@ export type UiKindIconKey =
   | "automation"
   | "externalWebPage"
   | "autoRedirect"
-  | "elementInWebPage"
+  | "componentInWebPage"
   | "elementOnMobile"
   | "webPage"
   | "mobileAppScreen";
@@ -147,8 +185,8 @@ export function resolveUiKindIconKey(source: StickyKindSource): UiKindIconKey | 
       return "externalWebPage";
     case "Auto-Redirect URL":
       return "autoRedirect";
-    case "Element In Web Page":
-      return "elementInWebPage";
+    case "webpage components":
+      return "componentInWebPage";
     case "Element On Mobile App":
       return "elementOnMobile";
     case "Web Page":
@@ -166,7 +204,7 @@ export const UI_KIND_LUCIDE_ICONS: Record<UiKindIconKey, string> = {
   externalWebPage: "Globe",
   /** Outbound corner arrow — shared by success and failure auto-redirect URLs. */
   autoRedirect: "SquareArrowOutUpRight",
-  elementInWebPage: "MousePointer2",
+  componentInWebPage: "MousePointer2",
   elementOnMobile: "Smartphone + Circle",
   webPage: "AppWindow",
   mobileAppScreen: "Smartphone",
@@ -190,7 +228,7 @@ function KindIcon({ iconKey }: { iconKey: UiKindIconKey }) {
       return <Globe {...props} />;
     case "autoRedirect":
       return <SquareArrowOutUpRight {...props} />;
-    case "elementInWebPage":
+    case "componentInWebPage":
       return <MousePointer2 {...props} />;
     case "elementOnMobile":
       return (
@@ -317,7 +355,7 @@ function StickyApiClientResponse({ cases }: { cases: StickyApiCase[] }) {
       onClick={stopCardClick}
       onDoubleClick={stopCardClick}
     >
-      <summary>API Client Response</summary>
+      <summary>{TRIGGER_FIELD_GROUP_LABEL.collected}</summary>
       <div className="sticky-fields__panel">
         <div className="sticky-api-cases">
           {cases.map((responseCase) => (
@@ -340,18 +378,48 @@ function StickyApiClientResponse({ cases }: { cases: StickyApiCase[] }) {
 }
 
 function StickySections({
+  kind,
   fields,
   apiClientResponse,
+  whoLabel,
+  externalLabel,
 }: {
+  kind?: string;
   fields?: StickyField[];
   apiClientResponse?: StickyApiCase[];
+  /** Triggers: Who sits under the section divider, above the field groups. */
+  whoLabel?: string;
+  /** Automations: External sits under the section divider, above the API response. */
+  externalLabel?: string;
 }) {
-  const hasFields = Boolean(fields && fields.length > 0);
+  const presentedFields =
+    kind === "automation" ? (fields ?? []).filter((field) => field.category === "presented") : [];
+  const groupedFields =
+    kind === "automation" ? (fields ?? []).filter((field) => field.category !== "presented") : fields;
+  const fieldGroups =
+    kind === "trigger" && groupedFields?.length
+      ? groupTriggerFields(groupedFields)
+      : groupedFields?.length
+        ? [{ label: "Fields", fields: groupedFields }]
+        : [];
   const hasApi = Boolean(apiClientResponse && apiClientResponse.length > 0);
-  if (!hasFields && !hasApi) return null;
+  const whoBelowLine = Boolean(kind === "trigger" && whoLabel);
+  const externalBelowLine = Boolean(kind === "automation" && externalLabel);
+  if (!fieldGroups.length && !hasApi && !whoBelowLine && !externalBelowLine && !presentedFields.length) {
+    return null;
+  }
   return (
     <div className="sticky-sections">
-      {hasFields ? <StickyFields fields={fields!} /> : null}
+      {whoBelowLine ? <div className="sticky-parents sticky-who-below-line">{whoLabel}</div> : null}
+      {externalBelowLine ? (
+        <div className="sticky-parents sticky-who-below-line">{externalLabel}</div>
+      ) : null}
+      {presentedFields.length ? (
+        <StickyFields fields={presentedFields} label={TRIGGER_FIELD_GROUP_LABEL.presented} />
+      ) : null}
+      {fieldGroups.map((group) => (
+        <StickyFields key={group.label} fields={group.fields} label={group.label} />
+      ))}
       {hasApi ? <StickyApiClientResponse cases={apiClientResponse!} /> : null}
     </div>
   );
@@ -415,23 +483,25 @@ function StickyNodeComponent({ id, data }: NodeProps) {
   const ringW = ringSize.w - RING_INSET * 2;
   const ringH = ringSize.h - RING_INSET * 2;
   const parentsLabel = d.parents?.length ? formatParentsLabel(d.parents) : null;
+  const externalLabel = d.externalName ? formatExternalLabel(d.externalName) : undefined;
   const hasSections = Boolean(
-    (d.fields && d.fields.length > 0) || (d.apiClientResponse && d.apiClientResponse.length > 0),
+    (d.fields && d.fields.length > 0) ||
+      (d.apiClientResponse && d.apiClientResponse.length > 0) ||
+      externalLabel,
   );
   const kindIconKey = resolveUiKindIconKey(d);
   // Commands/events: Context: in header (quiet meta). Automations: Who in header
-  // under the kind tag. Data tables: For: then Who under the name.
-  // Triggers/screens: Location prefix weak italic, value bold. Who faint below name.
+  // under the kind tag. Data tables: For: under the name. No Who line.
+  // Triggers: Location in the header; Who under the section line. Screens: Who below the name.
   const contextInHeader = Boolean(
     d.laneLabel && (d.kind === "command" || d.kind === "event"),
   );
   const whoInHeader = Boolean(d.laneLabel && d.kind === "automation");
-  const dataTableMetaBelow = Boolean(
-    d.kind === "dataTable" && (d.whoLabel || d.contextLabel),
-  );
+  const dataTableMetaBelow = Boolean(d.kind === "dataTable" && d.contextLabel);
   const isTriggerUi = d.kind === "trigger" || d.kind === "screen";
+  const whoBelowLine = Boolean(d.kind === "trigger" && d.laneLabel);
   const whoBelowName = Boolean(
-    d.laneLabel && !contextInHeader && !whoInHeader && !dataTableMetaBelow,
+    d.laneLabel && !contextInHeader && !whoInHeader && !dataTableMetaBelow && !whoBelowLine,
   );
   // Automations show the actor name only — no "Who:" prefix (Location-like placement).
   const automationWhoLabel = whoInHeader
@@ -478,19 +548,32 @@ function StickyNodeComponent({ id, data }: NodeProps) {
           ) : null}
         </div>
         <div className="name">{d.name}</div>
+        {d.streamTag ? (
+          <div className={dataTableMetaClass}>
+            <div className="sticky-data-table-context">
+              <span className="sticky-meta-prefix">Stream: </span>
+              <span className="sticky-meta-value">{d.streamTag}</span>
+            </div>
+          </div>
+        ) : null}
         {dataTableMetaBelow ? (
           <div className={dataTableMetaClass}>
             {d.contextLabel ? (
               <MetaPrefixLine className="sticky-data-table-context" label={d.contextLabel} />
             ) : null}
-            {d.whoLabel ? <div className="sticky-parents">{d.whoLabel}</div> : null}
           </div>
         ) : null}
         {whoBelowName ? <div className={whoLaneClass}>{d.laneLabel}</div> : null}
         {!d.laneLabel && !dataTableMetaBelow && d.subtitle ? (
           <div className="sticky-subtitle">{d.subtitle}</div>
         ) : null}
-        <StickySections fields={d.fields} apiClientResponse={d.apiClientResponse} />
+        <StickySections
+          kind={d.kind}
+          fields={d.fields}
+          apiClientResponse={d.apiClientResponse}
+          whoLabel={whoBelowLine ? d.laneLabel : undefined}
+          externalLabel={d.kind === "automation" ? externalLabel : undefined}
+        />
       </div>
       {showRing && ringSize.w > 0 && ringSize.h > 0 && ringW > 0 && ringH > 0 ? (
         <svg

@@ -73,8 +73,9 @@ test("invalid when end not reachable from start on same stream", () => {
 
 test("workflow labels include stream name", () => {
   const opts = listWorkflowEventOptions(apex);
-  assert.equal(opts.length, 37); // includes Licensing context events
+  assert.equal(opts.length, 38); // includes Licensing context events and User Registered
   assert.ok(opts.some((o) => o.label.includes("Subscription") && o.name === "Trial Started V1"));
+  assert.ok(opts.some((o) => o.label.includes("User") && o.name === "User Registered"));
 });
 
 test("diamond union includes both branches", () => {

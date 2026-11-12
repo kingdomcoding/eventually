@@ -45,7 +45,7 @@ import { nextDiagramMode } from "./diagramMode";
 import { streamViewportLooksStale } from "./streamStoryCamera";
 import { BAND_LABEL_DESIGN_UI } from "./streamLabels";
 import {
-  dataTableWhoStreamId,
+  automationActorLabel,
   formatDataTableLaneLabel,
   formatLaneLabel,
 } from "./laneLabel";
@@ -578,7 +578,6 @@ export function BlueprintCanvas() {
         const p = displayPositions.get(n.id) ?? { x: 0, y: 0 };
         let subtitle: string | undefined;
         let laneLabel: string | undefined;
-        let whoLabel: string | undefined;
         let contextLabel: string | undefined;
         if (diagramMode === "timeline") {
           if (n.type === "event" || n.type === "trigger" || n.type === "screen") {
@@ -586,10 +585,9 @@ export function BlueprintCanvas() {
           } else if (n.type === "command") {
             laneLabel = laneForStream(commandStreamId(n.id) ?? n.streamId);
           } else if (n.type === "dataTable") {
-            whoLabel = laneForStream(dataTableWhoStreamId(doc, n.id) ?? n.streamId);
             contextLabel = formatDataTableLaneLabel(doc, n.id);
           } else if (n.type === "automation") {
-            laneLabel = laneForStream(n.streamId);
+            laneLabel = automationActorLabel(n.id, laneForStream(n.streamId));
           }
         } else if (n.type === "command" && n.rejections.length) {
           subtitle = `${n.rejections.length} rejection(s)`;
@@ -619,11 +617,17 @@ export function BlueprintCanvas() {
             name: n.name,
             subtitle,
             laneLabel,
-            whoLabel,
             contextLabel,
+            streamTag:
+              (n.type === "command" || n.type === "event") && n.streamTag
+                ? n.streamTag
+                : undefined,
             fields:
               diagramMode === "timeline" &&
-              (n.type === "event" || n.type === "trigger" || n.type === "command") &&
+              (n.type === "event" ||
+                n.type === "trigger" ||
+                n.type === "command" ||
+                n.type === "automation") &&
               "fields" in n &&
               n.fields?.length
                 ? n.fields
@@ -633,7 +637,9 @@ export function BlueprintCanvas() {
                       type: field.type,
                       description:
                         field.source.kind === "fromEvent"
-                          ? `From ${field.source.eventId}.${field.source.field}.`
+                          ? `From ${field.source.eventId}.${field.source.field}.${
+                              field.source.note ? ` ${field.source.note}` : ""
+                            }`
                           : field.source.kind === "derived"
                             ? field.source.note ?? "Derived for this data table."
                             : field.source.kind === "user"
@@ -645,9 +651,13 @@ export function BlueprintCanvas() {
                   : undefined,
             apiClientResponse:
               diagramMode === "timeline" &&
-              n.type === "command" &&
+              (n.type === "command" || n.type === "automation") &&
               n.apiClientResponse?.length
                 ? n.apiClientResponse
+                : undefined,
+            externalName:
+              diagramMode === "timeline" && n.type === "automation" && n.external
+                ? n.external
                 : undefined,
             onMeasuredSize,
             isFocusAnchor,
@@ -836,7 +846,7 @@ export function BlueprintCanvas() {
                 <i style={{ background: "#eceff4" }} /> Mobile App Screen
               </span>
               <span>
-                <i style={{ background: "#c5d4e8" }} /> Element In Web Page
+                <i style={{ background: "#c5d4e8" }} /> webpage components
               </span>
               <span>
                 <i style={{ background: "#c5d4e8" }} /> Element On Mobile App
@@ -848,7 +858,7 @@ export function BlueprintCanvas() {
                 <i style={{ background: "#c5d4e8" }} /> Auto-Redirect URL
               </span>
               <span>
-                <i style={{ background: "#e7dcc6" }} /> Automation
+                <i style={{ background: "#c5d4e8" }} /> Automation
               </span>
             </div>
           ) : null}
@@ -927,8 +937,7 @@ export function BlueprintCanvas() {
                 if (k === "command") return "#4a8fd4";
                 if (k === "dataTable") return "#5cb85c";
                 if (k === "screen") return "#eceff4";
-                if (k === "trigger") return "#c5d4e8";
-                if (k === "automation") return "#e7dcc6";
+                if (k === "trigger" || k === "automation") return "#c5d4e8";
                 return "#243044";
               }}
               maskColor="rgba(15, 20, 25, 0.88)"

@@ -25,6 +25,16 @@ export const EventFieldSchema = z.object({
   description: z.string().min(1),
 });
 
+/**
+ * How a trigger field relates to the user.
+ * presented = Data Presented (displayed); collected = Data Collected (entered by the user); metadata = sourced another way.
+ */
+export const TriggerFieldCategorySchema = z.enum(["presented", "collected", "metadata"]);
+
+export const TriggerFieldSchema = EventFieldSchema.extend({
+  category: TriggerFieldCategorySchema,
+});
+
 /** One outcome shape returned by an API client (e.g. Paystack success vs error). */
 export const ApiClientResponseCaseSchema = z.object({
   label: z.string().min(1),
@@ -37,6 +47,8 @@ export const EventNodeSchema = NodeBase.extend({
   timelineIndex: z.number().int().nonnegative(),
   payload: z.array(FieldSpecSchema),
   fields: z.array(EventFieldSchema).optional(),
+  /** Shown under the name as "stream: …". */
+  streamTag: z.string().min(1).optional(),
 });
 
 export const CommandNodeSchema = NodeBase.extend({
@@ -57,6 +69,8 @@ export const CommandNodeSchema = NodeBase.extend({
   fields: z.array(EventFieldSchema).optional(),
   /** Shapes the internal API client returns (success and error cases). */
   apiClientResponse: z.array(ApiClientResponseCaseSchema).optional(),
+  /** Shown under the name as "stream: …". */
+  streamTag: z.string().min(1).optional(),
 });
 
 export const DataTableNodeSchema = NodeBase.extend({
@@ -71,14 +85,23 @@ export const AutomationNodeSchema = NodeBase.extend({
   type: z.literal("automation"),
   /** Data table ids this processor watches. */
   observes: z.array(z.string().min(1)).default([]),
+  /**
+   * Outside system this processor calls. Shown as External: under the section line,
+   * not as a Who.
+   */
+  external: z.string().min(1).optional(),
+  /** Request fields shown under Data Presented. Same categories as trigger fields. */
+  fields: z.array(TriggerFieldSchema).optional(),
+  /** Shapes returned by that external API (success and error cases). */
+  apiClientResponse: z.array(ApiClientResponseCaseSchema).optional(),
 });
 
 /** A UI control that issues a command (button, link). Lives on a ui-band stream. */
 export const TriggerNodeSchema = NodeBase.extend({
   type: z.literal("trigger"),
   actor: z.string().min(1),
-  /** Prototype field list for the control (e.g. button inputs). Same shape as event fields. */
-  fields: z.array(EventFieldSchema).optional(),
+  /** Fields on this control, grouped as Data Presented, Data Collected, or Metadata. */
+  fields: z.array(TriggerFieldSchema).optional(),
   /** Hosted outside the product (e.g. Paystack checkout). Kind label: External Web Page. */
   external: z.boolean().optional(),
   /** Paystack (or similar) auto-redirect URL. Kind label: Auto-Redirect URL. */

@@ -5,6 +5,21 @@ export function titleCaseLabel(value: string): string {
   return value.replace(/(^|\s)(\S)/g, (_lead, space: string, ch: string) => space + ch.toUpperCase());
 }
 
+/** Processors that are their own identity, with no separate actor line. */
+const SELF_NAMED_AUTOMATION_IDS = new Set(["auto-subscription-charge"]);
+
+/**
+ * Actor line for an automation sticky. Self-named processors return nothing
+ * so the card shows only its own name.
+ */
+export function automationActorLabel(
+  automationId: string,
+  streamLabel: string | undefined,
+): string | undefined {
+  if (SELF_NAMED_AUTOMATION_IDS.has(automationId)) return undefined;
+  return streamLabel;
+}
+
 /**
  * Swim-lane label for timeline stickies.
  * Actor (ui) lanes → "Who: …"; context/stream lanes (commands/events) → "Context: …".
@@ -56,7 +71,7 @@ export function dataTableConsumerNames(
 
 /**
  * Context for a data table: prefer the host page (trigger parents / screens)
- * over element triggers, so Context names the page rather than a control on it.
+ * over component triggers, so Context names the page rather than a control on it.
  */
 export function dataTableContextNames(
   doc: BlueprintDocument,

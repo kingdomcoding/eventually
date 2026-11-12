@@ -82,6 +82,13 @@ function producingCommand(doc: BlueprintDocument, eventId: string) {
   return doc.nodes.find((n) => n.type === "command" && n.produces.includes(eventId));
 }
 
+/** An event whose only link is feeding a data table. It sits under that table instead of opening a column. */
+function isParkedWithTable(doc: BlueprintDocument, eventId: string): boolean {
+  if (producingCommand(doc, eventId)) return false;
+  const touching = doc.edges.filter((e) => e.from === eventId || e.to === eventId);
+  return touching.length > 0 && touching.every((e) => e.rel === "updates" && e.from === eventId);
+}
+
 function commandIssuedFromScreen(
   doc: BlueprintDocument,
   screen: BlueprintNode & { type: "screen" },
@@ -293,19 +300,71 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
   );
 
   const precedingViewIds = viewsPrecedingAnyCommand(doc);
+  const parkedEventIds = new Set(
+    events.filter((event) => isParkedWithTable(doc, event.id)).map((event) => event.id),
+  );
   const viewsByAnchor = new Map<string, BlueprintNode[]>();
   for (const view of views) {
     // UI-fed tables sit before their command; don't also fan them after a fedBy event.
     if (precedingViewIds.has(view.id)) continue;
     const anchor = anchorEventForDataTable(doc, view, events);
-    const key = anchor?.id ?? "orphan";
+    // A table fed only by a parked event sits with the other tables of its automation.
+    const key = !anchor || parkedEventIds.has(anchor.id) ? "orphan" : anchor.id;
     if (!viewsByAnchor.has(key)) viewsByAnchor.set(key, []);
     viewsByAnchor.get(key)!.push(view);
   }
 
-  const storyIndices = [...new Set(events.map((e) => storyIndexForEvent(doc, e.id)))].sort(
-    (a, b) => a - b,
-  );
+  // A table with no feeding event still sits beside a table that feeds the same automation.
+  const anchorOf = new Map<string, string>();
+  for (const [key, list] of viewsByAnchor) {
+    if (key === "orphan") continue;
+    for (const view of list) anchorOf.set(view.id, key);
+  }
+  const stillOrphan: BlueprintNode[] = [];
+  for (const view of viewsByAnchor.get("orphan") ?? []) {
+    const autoId = doc.edges.find((e) => e.rel === "observes" && e.from === view.id)?.to;
+    const siblingId = autoId
+      ? [...anchorOf.keys()].find((id) =>
+          doc.edges.some((e) => e.rel === "observes" && e.from === id && e.to === autoId),
+        )
+      : undefined;
+    const key = siblingId ? anchorOf.get(siblingId) : undefined;
+    if (!key) {
+      stillOrphan.push(view);
+      continue;
+    }
+    viewsByAnchor.get(key)!.push(view);
+    anchorOf.set(view.id, key);
+  }
+  if (stillOrphan.length) viewsByAnchor.set("orphan", stillOrphan);
+  else viewsByAnchor.delete("orphan");
+
+  // Keep a fed table beside a neighbor without pulling its source event over.
+  const sitAfter: Array<[string, string]> = [
+    ["data-table-cohort-window-prices", "data-table-registered-emails"],
+  ];
+  for (const [viewId, afterId] of sitAfter) {
+    let moved: BlueprintNode | undefined;
+    for (const list of viewsByAnchor.values()) {
+      const index = list.findIndex((item) => item.id === viewId);
+      if (index < 0) continue;
+      moved = list.splice(index, 1)[0];
+      break;
+    }
+    if (!moved) continue;
+    for (const list of viewsByAnchor.values()) {
+      const after = list.findIndex((item) => item.id === afterId);
+      if (after < 0) continue;
+      list.splice(after + 1, 0, moved);
+      break;
+    }
+  }
+
+  const storyIndices = [
+    ...new Set(
+      events.filter((e) => !parkedEventIds.has(e.id)).map((e) => storyIndexForEvent(doc, e.id)),
+    ),
+  ].sort((a, b) => a - b);
   const maxScreensAtSi = maxScreensPerStoryIndex(doc, events);
   const xAtStory = buildStoryX(doc, events, viewsByAnchor, maxScreensAtSi, storyIndices);
 
@@ -323,6 +382,7 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
   const placedCatalogIds = new Set<string>();
 
   for (const event of events) {
+    if (parkedEventIds.has(event.id)) continue;
     const si = storyIndexForEvent(doc, event.id);
     const anchorX = xAtStory(si);
     const cmd = producingCommand(doc, event.id);
@@ -350,6 +410,13 @@ export function computeTimelineLayout(doc: BlueprintDocument): LayoutResult {
         y: yMidPlaced,
       });
     });
+  }
+
+  for (const eventId of parkedEventIds) {
+    const fed = doc.edges.find((e) => e.rel === "updates" && e.from === eventId);
+    const tablePos = fed ? positions.get(fed.to) : undefined;
+    if (!tablePos) continue;
+    positions.set(eventId, { x: tablePos.x, y: yEventPlaced });
   }
 
   for (const view of viewsByAnchor.get("orphan") ?? []) {

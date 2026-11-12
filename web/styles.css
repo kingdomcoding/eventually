@@ -696,6 +696,15 @@ body,
   margin-top: 0.35rem;
 }
 
+/* Trigger Who sits under the section line; field groups stay below it. */
+.sticky-who-below-line {
+  margin-top: 0;
+}
+
+.sticky-sections > .sticky-who-below-line + .sticky-fields {
+  margin-top: 0.35rem;
+}
+
 .sticky-fields > summary,
 .sticky-api-case > summary {
   cursor: pointer;
@@ -915,7 +924,8 @@ body,
   border-color: #8fa3bc;
 }
 
-.sticky.trigger {
+.sticky.trigger,
+.sticky.automation {
   background: linear-gradient(165deg, #e7eef6, #c5d4e8);
   color: #1a2332;
   border-color: #6b829c;
@@ -962,7 +972,7 @@ body,
   margin-bottom: 0;
 }
 
-/* For: on data tables: value stays bold; only the prefix is weak italic. */
+/* For: on data tables: value matches the prefix weight, upright and full opacity; only the prefix is weak italic. */
 .sticky-data-table-context {
   margin: 0;
   font-size: 0.68rem;
@@ -982,15 +992,12 @@ body,
 }
 
 .sticky-meta-value {
-  font-weight: 800;
+  font-weight: 500;
   font-style: normal;
 }
 
 .sticky.automation {
-  background: linear-gradient(165deg, #f7f1e4, #e7dcc6);
-  color: #2a2418;
   border-style: dashed;
-  border-color: #b08968;
 }
 
 .kind-icon,

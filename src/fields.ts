@@ -9,6 +9,7 @@ export const FieldSourceSchema = z.discriminatedUnion("kind", [
     kind: z.literal("fromEvent"),
     eventId: z.string().min(1),
     field: z.string().min(1),
+    note: z.string().optional(),
   }),
   z.object({ kind: z.literal("external"), note: z.string().optional() }),
 ]);
